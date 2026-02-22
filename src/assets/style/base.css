@@ -1,0 +1,238 @@
+/* ========================================
+  BASE CSS: GOJEK-STYLE BILLING ISP
+  Sifat: Global (Letakkan di App.vue atau main.css)
+  ========================================
+*/
+
+:root {
+  /* Branding Colors */
+  --primary: #00AA13;         /* Hijau Gojek */
+  --primary-dark: #008810;
+  --primary-light: #E5F6E7;
+  
+  /* Neutral Colors */
+  --bg-main: #F9FAFB;
+  --bg-card: #FFFFFF;
+  --border: #EEEEEE;
+  --text-main: #1C1C1C;       /* Hitam Asphalt */
+  --text-muted: #646464;
+  --text-on-primary: #FFFFFF;
+
+  /* Semantic Colors */
+  --danger: #E63946;
+  --warning: #FFB020;
+  --success: #00AA13;
+  
+  /* Shadow & Radius */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+  --radius-md: 12px;
+  --radius-lg: 16px;
+}
+
+/* 1. RESET & GLOBAL */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--text-main);
+  background-color: var(--bg-main);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 2. LAYOUT STRUCTURE */
+.layout {
+  display: flex;
+  height: 100vh;
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* Mencegah scroll double */
+}
+
+/* 3. SIDEBAR (DESKTOP) */
+.sidebar {
+  width: 280px;
+  background: white;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+}
+
+.logo-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 40px;
+}
+
+.logo-icon {
+  background: var(--primary);
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+}
+
+.logo-text {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+.nav-menu { flex: 1; }
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  color: var(--text-muted);
+  text-decoration: none;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  margin-bottom: 4px;
+  transition: 0.2s;
+}
+
+.nav-item:hover { background: var(--bg-main); }
+.nav-item.router-link-active {
+  background: var(--primary-light);
+  color: var(--primary);
+}
+
+/* 4. TOPBAR */
+.topbar {
+  background: white;
+  height: 72px;
+  padding: 0 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+
+.page-title { font-size: 18px; font-weight: 700; }
+
+/* 5. CONTENT AREA */
+.content {
+  flex: 1;
+  padding: 32px;
+  overflow-y: auto;
+}
+
+/* 6. FORM ELEMENTS */
+input, select, textarea {
+  width: 100%;
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+input:focus {
+  border-color: var(--primary);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 170, 19, 0.1);
+}
+
+button {
+  padding: 10px 20px;
+  border-radius: 100px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  transition: 0.2s;
+}
+
+.btn-primary { background: var(--primary); color: white; }
+.btn-primary:hover { background: var(--primary-dark); }
+
+/* 7. TABLES & CARDS */
+.card {
+  background: white;
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+.table-wrapper {
+  overflow-x: auto;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+}
+
+.data-table th {
+  text-align: left;
+  padding: 16px;
+  background: #FAFAFA;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.data-table td {
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+
+/* 8. MOBILE RESPONSIVE (Bottom Nav) */
+.bottom-nav { display: none; }
+
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .topbar { padding: 0 20px; height: 60px; }
+  .content { padding: 20px 16px 100px 16px; }
+
+  .bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 70px;
+    background: white;
+    border-top: 1px solid var(--border);
+    justify-content: space-around;
+    align-items: center;
+    padding-bottom: env(safe-area-inset-bottom);
+    z-index: 100;
+    box-shadow: 0 -4px 12px rgba(0,0,0,0.05);
+  }
+
+  .bnav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-decoration: none;
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  .bnav-item.router-link-active { color: var(--primary); }
+}
+
+/* Utilities */
+.text-green { color: var(--primary); }
+.mt-24 { margin-top: 24px; }
