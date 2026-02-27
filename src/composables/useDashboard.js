@@ -1,6 +1,8 @@
 import { ref } from "vue"
 import { db } from "@/firebase"
-import { collection, query, where, getDocs, orderBy, limit, addDoc } from "firebase/firestore"
+import { collection, query, where, getDocs, orderBy, limit, addDoc, serverTimestamp } from "firebase/firestore"
+import { applyAutoSubscribe, getOpenInvoices } from "@/services/paymentService"
+import { canGenerateInvoice } from "@/utils/billingRules"
 
 export function useDashboard() {
   const summary = ref(null)
@@ -160,35 +162,45 @@ export function useDashboard() {
   
     // Buat set customer_id yang sudah punya invoice
     const existingCustomerIds = new Set()
-  
     invoiceSnap.forEach(doc => {
       existingCustomerIds.add(doc.data().customer_id)
     })
   
-    // 3️⃣ Generate invoice untuk yang belum ada
-    const promises = []
-  
-    customerSnap.forEach(doc => {
-      const customer = doc.data()
-      const customerId = doc.id
-  
-      if (!existingCustomerIds.has(customerId)) {
-        promises.push(
-          addDoc(collection(db, "invoices"), {
-            customer_id: customerId,
-            customer_name: customer.name,
-            amount: customer.custom_price,
-            paid_amount: 0,
-            status: "unpaid",
-            month,
-            auto_subscribed: false,
-            created_at: new Date()
-          })
+    for (const docSnap of customerSnap.docs) {
+      const customer = docSnap.data()
+      const customerId = docSnap.id
+
+      // Skip jika sudah ada invoice bulan ini
+      if (existingCustomerIds.has(customerId)) continue
+
+      if (!canGenerateInvoice(customer, month)) continue
+
+      // =============================
+      // Buat invoice bulan ini
+      // =============================
+      await addDoc(collection(db, "invoices"), {
+        customer_id: customerId,
+        customer_name: customer.name,
+        amount: Number(customer.custom_price),
+        paid_amount: 0,
+        status: "unpaid",
+        auto_subscribed: false,
+        month,
+        created_at: serverTimestamp()
+      })
+
+      // =============================
+      // 7️⃣ Full otomatis: cek saldo
+      // =============================
+      if ((customer.balance || 0) > 0) {
+        const openInvoices = await getOpenInvoices(customerId)
+
+        await applyAutoSubscribe(
+          { id: customerId, ...customer },
+          openInvoices
         )
       }
-    })
-  
-    await Promise.all(promises)
+    }
   }
 
   return {

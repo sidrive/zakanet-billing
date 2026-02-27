@@ -10,6 +10,7 @@ import {
 } from "firebase/firestore"
 import { db } from "../firebase"
 import { currentMonth } from "../utils/date"
+import { canGenerateInvoice } from "@/utils/billingRules"
 
 const invoiceRef = collection(db, "invoices")
 const paymentRef = collection(db, "payments")
@@ -55,43 +56,55 @@ export async function hasPaidThisMonth(customerId, month) {
 }
 
 export async function ensureInvoiceThisMonth(customer) {
- const month = currentMonth()
+  const month = currentMonth()
 
- const q = query(
-   invoiceRef,
-   where("customer_id", "==", customer.id),
-   where("month", "==", month)
- )
+  // ⛔ Skip jika nonaktif
+  if (!customer.is_active) return null
 
- const snap = await getDocs(q)
+  const q = query(
+    invoiceRef,
+    where("customer_id", "==", customer.id),
+    where("month", "==", month)
+  )
 
- if (!snap.empty) {
-   return {
-     id: snap.docs[0].id,
-     ...snap.docs[0].data()
-   }
- }
+  const snap = await getDocs(q)
 
- const ref = await addDoc(invoiceRef, {
-   customer_id: customer.id,
-   month,
-   amount: Number(customer.custom_price),
-   paid_amount: 0,
-   status: "unpaid",
-   auto_subscribed: false, // 🔒 KUNCI DI SINI
-   paid_at: null,
-   created_at: new Date()
- })
+  if (!snap.empty) {
+    return {
+      id: snap.docs[0].id,
+      ...snap.docs[0].data()
+    }
+  }
 
- return {
-   id: ref.id,
-   customer_id: customer.id,
-   month,
-   amount: Number(customer.custom_price),
-   paid_amount: 0,
-   status: "unpaid",
-   auto_subscribed: false
- }
+  if (!canGenerateInvoice(customer, month)) {
+    return null
+  }
+
+  // =============================
+  // Generate invoice
+  // =============================
+
+  const ref = await addDoc(invoiceRef, {
+    customer_id: customer.id,
+    customer_name: customer.name,
+    month,
+    amount: Number(customer.custom_price),
+    paid_amount: 0,
+    status: "unpaid",
+    auto_subscribed: false,
+    paid_at: null,
+    created_at: new Date()
+  })
+
+  return {
+    id: ref.id,
+    customer_id: customer.id,
+    month,
+    amount: Number(customer.custom_price),
+    paid_amount: 0,
+    status: "unpaid",
+    auto_subscribed: false
+  }
 }
 
 
@@ -125,7 +138,8 @@ export async function applyAutoSubscribe(customer, invoices) {
      await updateDoc(doc(db, "invoices", inv.id), {
        paid_amount: inv.amount,
        status: "paid",
-       paid_at: new Date()
+       paid_at: new Date(),
+       auto_subscribed: true
      })
      saldo -= sisa
    } else {

@@ -1,18 +1,43 @@
 <template>
   <div class="payment-container">
-    <header class="payment-header">
-      <h2 class="title">Pembayaran Layanan ISP</h2>
-      <p class="subtitle">Kelola tagihan dan saldo pelanggan dengan mudah</p>
+    <header class="section-header">
+      <h2 class="section-title">Pembayaran Internet</h2>
+      <p class="section-subtitle">Kelola tagihan dan saldo pelanggan dengan mudah</p>
     </header>
 
     <div class="card selector-card">
       <label class="input-label">Pilih Pelanggan</label>
-      <div class="select-wrapper">
-        <select @change="selectCustomer(customers[$event.target.selectedIndex - 1])" class="custom-select">
-          <option value="">Cari nama pelanggan...</option>
-          <option v-for="c in customers" :key="c.id">{{ c.name }}</option>
-        </select>
-        <span class="chevron"></span>
+      <div class="searchable-select">
+        <div class="input-search-wrapper">
+          <span class="search-icon">🔍</span>
+          <input 
+            type="text" 
+            v-model="searchQuery" 
+            @focus="isDropdownOpen = true"
+            placeholder="Ketik nama pelanggan..." 
+            class="search-input"
+          />
+          <button v-if="searchQuery" @click="clearSearch" class="btn-clear">✕</button>
+        </div>
+
+        <div v-if="isDropdownOpen && filteredCustomers.length > 0" class="search-results-dropdown">
+          <div 
+            v-for="c in filteredCustomers" 
+            :key="c.id" 
+            @click="handleSelect(c)"
+            class="result-item"
+          >
+            <div class="result-avatar">{{ c.name.charAt(0) }}</div>
+            <div class="result-info">
+              <span class="result-name">{{ c.name }}</span>
+              <span class="result-id">ID: #{{ c.id }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="isDropdownOpen && searchQuery && filteredCustomers.length === 0" class="no-result">
+          Pelanggan tidak ditemukan
+        </div>
       </div>
     </div>
 
@@ -37,6 +62,9 @@
               <span class="stat-label">Tunggakan</span>
               <span class="stat-value" :class="unpaidInvoices.length > 0 ? 'text-red' : ''">
                 {{ unpaidInvoices.length }} Bulan
+                <span v-if="unpaidInvoices.length > 0" class="small-info">
+                  ({{ tunggakanLabel }})
+                </span>
               </span>
             </div>
           </div>
@@ -184,7 +212,7 @@
 </template>
 
 <script setup>
-import { ref } from "vue"
+import { ref, computed, onMounted, onUnmounted } from "vue"
 import { getCustomers } from "../services/customerService"
 import { getOpenInvoices, payInvoice, createPayment, hasPaidThisMonth, ensureInvoiceThisMonth, applyAutoSubscribe } from "../services/paymentService"
 import { doc, updateDoc, getDoc } from "firebase/firestore"
@@ -207,6 +235,12 @@ const saldoAwal = ref(0)
 const saldoDipakai = ref(0)
 const showConfirm = ref(false)
 
+const emit = defineEmits(['select']);
+const searchQuery = ref('');
+const isDropdownOpen = ref(false);
+
+onMounted(() => window.addEventListener('click', closeOnOutsideClick));
+onUnmounted(() => window.removeEventListener('click', closeOnOutsideClick));
 
 async function loadCustomers() {
   customers.value = await getCustomers()
@@ -442,4 +476,54 @@ function showToast(message, type = "success") {
   }, 3000)
 }
 
+const formatMonthLabel = (monthStr) => {
+  if (!monthStr) return ""
+
+  const [year, month] = monthStr.split("-")
+  const date = new Date(Number(year), Number(month) - 1)
+
+  return date.toLocaleString("id-ID", {
+    month: "long",
+    year: "numeric"
+  })
+}
+
+const tunggakanLabel = computed(() => {
+  if (!unpaidInvoices.value?.length) return ""
+
+  const months = unpaidInvoices.value
+    .map(inv => formatMonthLabel(inv.month))
+    .sort((a, b) => a.localeCompare(b)) // opsional
+
+  return months.join(", ")
+})
+
+// Filter pelanggan berdasarkan input
+const filteredCustomers = computed(() => {
+  if (!searchQuery.value) return customers.value;
+  const query = searchQuery.value.toLowerCase();
+  return customers.value.filter(c => 
+    c.name.toLowerCase().includes(query) || 
+    c.id.toString().includes(query)
+  );
+});
+
+const handleSelect = (customer) => {
+  searchQuery.value = customer.name; // Set input jadi nama yang dipilih
+  isDropdownOpen.value = false;      // Tutup dropdown
+  // Panggil fungsi selectCustomer Anda
+  selectCustomer(customer); 
+};
+
+const clearSearch = () => {
+  searchQuery.value = '';
+  isDropdownOpen.value = true;
+};
+
+// Logika menutup dropdown saat klik di luar (Optional tapi Pro)
+const closeOnOutsideClick = (e) => {
+  if (!e.target.closest('.searchable-select')) {
+    isDropdownOpen.value = false;
+  }
+};
 </script>

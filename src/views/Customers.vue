@@ -15,6 +15,9 @@ const price = ref("")
 const searchQuery = ref("")
 const filterStatus = ref("all")
 
+const isSubmitting = ref(false);
+const isLoadingList = ref(false);
+
 const filteredCustomers = computed(() => {
   return customers.value.filter((customer) => {
     // Validasi Search (Nama atau No HP)
@@ -33,7 +36,15 @@ const filteredCustomers = computed(() => {
 });
 
 async function loadCustomers() {
-  customers.value = await getCustomers()
+  isLoadingList.value = true;
+  
+  try {
+    customers.value = await getCustomers();
+  } catch (error) {
+    console.error("Gagal memuat data pelanggan:", error);
+  } finally {
+    isLoadingList.value = false;
+  }
 }
 
 async function loadProducts() {
@@ -54,6 +65,7 @@ async function submitCustomer() {
   }
 
   const product = products.value.find(p => p.id === productId.value)
+  isSubmitting.value = true;
 
   await addCustomer({
     name: name.value,
@@ -72,6 +84,7 @@ async function submitCustomer() {
   price.value = ""
 
   await loadCustomers()
+  isSubmitting.value = false;
 }
 
 onMounted(() => {
@@ -181,8 +194,16 @@ onMounted(() => {
           <textarea v-model="address" placeholder="Alamat lengkap lokasi pelanggan" class="main-input" rows="2"></textarea>
         </div>
         <div class="form-actions full-width">
-          <button @click="submitCustomer" class="btn-green">
-            <span>+</span> Simpan Pelanggan
+          <button 
+            @click="submitCustomer" 
+            class="btn-green" 
+            :class="{ 'btn-loading': isSubmitting }"
+            :disabled="isSubmitting"
+          >
+            <span v-if="!isSubmitting">+ Simpan Pelanggan</span>
+            <span v-else class="loader-flex">
+              <div class="mini-spinner"></div> Menyimpan...
+            </span>
           </button>
         </div>
       </div>
@@ -223,7 +244,15 @@ onMounted(() => {
           </thead>
 
           <tbody>
-            <tr v-for="c in filteredCustomers" :key="c.id">
+            <tr v-if="isLoadingList" v-for="n in 3" :key="'loader-' + n">
+              <td colspan="5">
+                <div class="skeleton-row">
+                  <div class="skeleton-avatar"></div>
+                  <div class="skeleton-text"></div>
+                </div>
+              </td>
+            </tr>
+            <tr v-else v-for="c in filteredCustomers" :key="c.id">
               <td>
                 <div class="customer-info-cell">
                   <div class="mini-avatar">{{ c.name.charAt(0) }}</div>
@@ -353,5 +382,72 @@ onMounted(() => {
   .select-filter, .search-input {
     width: 100% !important;
   }
+}
+
+.btn-loading {
+  opacity: 0.8;
+  cursor: not-allowed;
+  background: var(--primary-dark) !important;
+}
+
+.loader-flex {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.mini-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Feedback visual saat input di-disable */
+.main-input:disabled {
+  background-color: #f1f5f9;
+  cursor: not-allowed;
+  color: #94a3b8;
+}
+
+/* Container untuk loading row */
+.skeleton-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+/* Animasi Pulse */
+.shadow-pulse {
+  animation: pulse 1.5s infinite ease-in-out;
+}
+
+.skeleton-avatar {
+  width: 32px;
+  height: 32px;
+  background: #f1f5f9;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.skeleton-line {
+  height: 14px;
+  background: #f1f5f9;
+  border-radius: 4px;
+  width: 60%;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.4; }
+  100% { opacity: 1; }
 }
 </style>

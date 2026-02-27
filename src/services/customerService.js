@@ -7,6 +7,7 @@ import {
  orderBy
 } from "firebase/firestore"
 import { db } from "../firebase"
+import { serverTimestamp } from "firebase/firestore"
 
 // reference collection
 const customerRef = collection(db, "customers")
@@ -18,7 +19,8 @@ export async function addCustomer(data) {
    name_lowercase: data.name.toLowerCase(),
    balance: 0,
    is_active: true,
-   created_at: new Date()
+   join_date: serverTimestamp(),
+   created_at: serverTimestamp()
  })
 }
 

@@ -7,11 +7,11 @@ import Reports from "../views/Reports.vue"
 import Products from "../views/Products.vue"
 
 const routes = [
-  { path: "/", component: Dashboard },
-  { path: "/products", component: Products },
-  { path: "/customers", component: Customers },
-  { path: "/payments", component: Payments },
-  { path: "/reports", component: Reports }
+  { path: "/", component: Dashboard, meta: { title: 'Dashboard'} },
+  { path: "/products", component: Products, meta: { title: 'Paket Layanan'} },
+  { path: "/customers", component: Customers, meta: { title: 'Pelanggan'} },
+  { path: "/payments", component: Payments, meta: { title: 'Pembayaran'} },
+  { path: "/reports", component: Reports, meta: { title: 'Laporan'} }
 ]
 
 export default createRouter({

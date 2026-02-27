@@ -236,3 +236,8 @@ button {
 /* Utilities */
 .text-green { color: var(--primary); }
 .mt-24 { margin-top: 24px; }
+
+/* Header Styling */
+.section-header { margin-bottom: 24px; }
+.section-title { font-size: 24px; font-weight: 800; color: var(--text-main); }
+.section-subtitle { font-size: 14px; color: var(--text-muted); }

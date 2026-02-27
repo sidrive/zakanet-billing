@@ -2,8 +2,8 @@
   <div class="layout" :class="{ 'mobile-nav-active': isMobileMenuOpen }">
     <aside class="sidebar">
       <div class="logo-wrapper">
-        <div class="logo-icon">B</div>
-        <span class="logo-text">Billing<span class="text-green">ISP</span></span>
+        <div class="logo-icon">Zn</div>
+        <span class="logo-text">Billing<span class="text-green">Zakanet</span></span>
       </div>
 
       <nav class="nav-menu">
@@ -36,7 +36,7 @@
           <h3 class="page-title">{{ $route.meta.title || 'Billing ISP' }}</h3>
         </div>
         <div class="topbar-right">
-          <div class="user-avatar">JD</div>
+          <div class="user-avatar">Ikun</div>
         </div>
       </header>
 
