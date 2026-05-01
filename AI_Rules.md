@@ -3,7 +3,7 @@
 ## WAJIB
 - Gunakan PROJECT_CONTEXT.md
 - Gunakan BUSINESS_RULES.md sebagai sumber kebenaran utama
-
+- Gunakan nvm use untuk menyesuaikan node version dari app
 ---
 
 ## DILARANG
