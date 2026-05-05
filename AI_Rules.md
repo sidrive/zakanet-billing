@@ -1,8 +1,9 @@
 # AI RULES
 
 ## WAJIB
-- Gunakan PROJECT_CONTEXT.md
-- Gunakan BUSINESS_RULES.md sebagai sumber kebenaran utama
+- Gunakan Project_Contex.md
+- Gunakan Business_Rules.md sebagai sumber kebenaran utama
+- Gunskan Architecture.md sebagai sumber arsitektur projek
 - Gunakan nvm use untuk menyesuaikan node version dari app
 ---
 

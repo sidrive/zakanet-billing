@@ -22,6 +22,9 @@
         <router-link to="/reports" class="nav-item">
           <i class="icon-chart"></i> <span>Laporan</span>
         </router-link>
+        <router-link to="/promo" class="nav-item">
+          <i class="icon-promo"></i> <span>Promo Bulanan</span>
+        </router-link>
       </nav>
 
       <div class="sidebar-footer">
@@ -60,6 +63,10 @@
         <router-link to="/reports" class="bnav-item">
           <span class="bnav-icon">📊</span>
           <span class="bnav-label">Laporan</span>
+        </router-link>
+        <router-link to="/promo" class="bnav-item">
+          <span class="bnav-icon">🎁</span>
+          <span class="bnav-label">Promo</span>
         </router-link>
       </nav>
     </main>

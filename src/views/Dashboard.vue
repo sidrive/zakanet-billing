@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted } from "vue"
 import { useDashboard } from "../composables/useDashboard"
+import { checkAndAutoDraw } from "@/services/promoService"
 
 const { summary, unpaidList, loadDashboard, recentPayments, ensureMonthlyInvoices } = useDashboard()
 
@@ -9,6 +10,8 @@ const currentMonth = new Date().toISOString().slice(0, 7)
 onMounted(async () => {
   await ensureMonthlyInvoices(currentMonth)
   await loadDashboard(currentMonth)
+  // Jalankan undian promo di background — tidak memblokir dashboard
+  checkAndAutoDraw(currentMonth)
 })
 
 const formatRupiah = (val) => {

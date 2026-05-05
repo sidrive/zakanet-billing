@@ -4,10 +4,13 @@ import {
  getDocs,
  query,
  where,
- orderBy
+ orderBy,
+ doc,
+ updateDoc,
+ serverTimestamp,
+ Timestamp
 } from "firebase/firestore"
 import { db } from "../firebase"
-import { serverTimestamp } from "firebase/firestore"
 
 // reference collection
 const customerRef = collection(db, "customers")
@@ -47,6 +50,24 @@ export async function searchCustomersByName(keyword) {
    id: doc.id,
    ...doc.data()
  }))
+}
+
+// update data pelanggan
+export async function updateCustomer(id, data) {
+ const ref = doc(db, "customers", id)
+ await updateDoc(ref, {
+   name: data.name,
+   name_lowercase: data.name.toLowerCase(),
+   phone: data.phone,
+   address: data.address,
+   product_id: data.product_id,
+   product_name: data.product_name,
+   custom_price: Number(data.custom_price),
+   is_active: data.is_active,
+   join_date: data.join_date
+     ? Timestamp.fromDate(new Date(data.join_date))
+     : null
+ })
 }
 
 // search pelanggan by phone

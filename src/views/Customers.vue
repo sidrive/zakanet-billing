@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, watch, computed } from "vue"
-import { addCustomer, getCustomers } from "../services/customerService"
+import { addCustomer, getCustomers, updateCustomer } from "../services/customerService"
 import { getActiveProducts } from "../services/productService"
 
 const customers = ref([])
@@ -17,6 +17,70 @@ const filterStatus = ref("all")
 
 const isSubmitting = ref(false);
 const isLoadingList = ref(false);
+
+// ── Edit Dialog ────────────────────────────────────────────
+const isEditOpen   = ref(false)
+const isUpdating   = ref(false)
+const editForm     = ref({
+  id: "", name: "", phone: "", address: "",
+  product_id: "", product_name: "", custom_price: "", is_active: true,
+  join_date: ""
+})
+
+function openEdit(customer) {
+  let joinDateStr = ""
+  if (customer.join_date) {
+    const d = customer.join_date.toDate ? customer.join_date.toDate() : new Date(customer.join_date)
+    joinDateStr = d.toISOString().slice(0, 10)
+  }
+  editForm.value = {
+    id:           customer.id,
+    name:         customer.name         ?? "",
+    phone:        customer.phone        ?? "",
+    address:      customer.address      ?? "",
+    product_id:   customer.product_id   ?? "",
+    product_name: customer.product_name ?? "",
+    custom_price: customer.custom_price ?? "",
+    is_active:    customer.is_active    ?? true,
+    join_date:    joinDateStr
+  }
+  isEditOpen.value = true
+  document.body.style.overflow = "hidden"
+}
+
+function closeEdit() {
+  isEditOpen.value = false
+  document.body.style.overflow = ""
+}
+
+// auto-fill harga saat ganti paket di form edit
+watch(() => editForm.value.product_id, (val) => {
+  const p = products.value.find(x => x.id === val)
+  if (p) {
+    editForm.value.custom_price  = p.price
+    editForm.value.product_name  = p.name
+  }
+})
+
+async function submitEdit() {
+  if (!editForm.value.name || !editForm.value.phone) {
+    return alert("Nama dan No HP wajib diisi")
+  }
+  isUpdating.value = true
+  try {
+    await updateCustomer(editForm.value.id, editForm.value)
+    await loadCustomers()
+    closeEdit()
+  } finally {
+    isUpdating.value = false
+  }
+}
+
+const formatJoinDate = (ts) => {
+  if (!ts) return null
+  const d = ts.toDate ? ts.toDate() : new Date(ts)
+  return d.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })
+}
 
 const filteredCustomers = computed(() => {
   return customers.value.filter((customer) => {
@@ -236,6 +300,7 @@ onMounted(() => {
             <tr>
               <th>Info Pelanggan</th>
               <th>Paket</th>
+              <th>Bergabung</th>
               <th>Biaya Bulanan</th>
               <th>Saldo Deposit</th>
               <th>Status</th>
@@ -266,6 +331,12 @@ onMounted(() => {
                 <div class="pkg-badge">{{ c.product_name || 'Tanpa Paket' }}</div>
               </td>
               <td>
+                <span v-if="formatJoinDate(c.join_date)" class="text-sm">
+                  {{ formatJoinDate(c.join_date) }}
+                </span>
+                <span v-else class="text-muted text-sm">Pelanggan Lama</span>
+              </td>
+              <td>
                 <span class="text-bold">Rp {{ c.custom_price.toLocaleString() }}</span>
               </td>
               <td>
@@ -280,12 +351,18 @@ onMounted(() => {
                 </span>
               </td>
               <td class="text-center">
-                <button class="btn-icon-only">edit</button>
+                <button class="btn-icon-edit" @click="openEdit(c)" title="Edit pelanggan">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                  </svg>
+                  Edit
+                </button>
               </td>
             </tr>
 
             <tr v-if="customers.length === 0">
-              <td colspan="6" class="empty-state">
+              <td colspan="7" class="empty-state">
                 <div class="empty-box">
                   <p>Belum ada data pelanggan terdaftar.</p>
                 </div>
@@ -295,6 +372,106 @@ onMounted(() => {
         </table>
       </div>
     </div>
+    <!-- ── Edit Dialog ─────────────────────────────────────── -->
+    <Transition name="dialog-fade">
+      <div v-if="isEditOpen" class="dialog-overlay" @click.self="closeEdit">
+        <div class="dialog-card">
+
+          <div class="dialog-header">
+            <div>
+              <h4 class="dialog-title">Edit Data Pelanggan</h4>
+              <p class="dialog-subtitle">Perubahan akan langsung tersimpan ke database</p>
+            </div>
+            <button class="btn-close" @click="closeEdit" aria-label="Tutup">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+
+          <div class="dialog-body">
+            <div class="form-grid-modern">
+
+              <div class="form-group">
+                <label class="input-label">Nama Lengkap</label>
+                <input v-model="editForm.name" placeholder="Nama pelanggan" class="main-input" />
+              </div>
+
+              <div class="form-group">
+                <label class="input-label">Nomor WhatsApp</label>
+                <input v-model="editForm.phone" placeholder="0812..." class="main-input" />
+              </div>
+
+              <div class="form-group">
+                <label class="input-label">Pilih Paket Internet</label>
+                <select v-model="editForm.product_id" class="main-input">
+                  <option value="">-- Pilih Paket --</option>
+                  <option v-for="p in products" :key="p.id" :value="p.id">{{ p.name }}</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="input-label">Harga Custom (Rp)</label>
+                <input v-model="editForm.custom_price" type="number" placeholder="Harga paket" class="main-input" />
+              </div>
+
+              <div class="form-group full-width">
+                <label class="input-label">Alamat Pemasangan</label>
+                <textarea v-model="editForm.address" placeholder="Alamat lengkap" class="main-input" rows="2"></textarea>
+              </div>
+
+              <div class="form-group">
+                <label class="input-label">Tanggal Bergabung</label>
+                <input
+                  v-model="editForm.join_date"
+                  type="date"
+                  class="main-input"
+                />
+                <p class="input-hint">Mempengaruhi awal tagihan &amp; eligibilitas promo</p>
+              </div>
+
+              <div class="form-group full-width">
+                <label class="input-label">Status Pelanggan</label>
+                <div class="status-toggle-group">
+                  <button
+                    type="button"
+                    :class="['toggle-btn', editForm.is_active ? 'active' : '']"
+                    @click="editForm.is_active = true"
+                  >
+                    <span class="toggle-dot"></span> Aktif
+                  </button>
+                  <button
+                    type="button"
+                    :class="['toggle-btn', 'danger-btn', !editForm.is_active ? 'active-danger' : '']"
+                    @click="editForm.is_active = false"
+                  >
+                    <span class="toggle-dot"></span> Nonaktif
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <div class="dialog-footer">
+            <button class="btn-cancel" @click="closeEdit" :disabled="isUpdating">Batal</button>
+            <button
+              class="btn-green"
+              :class="{ 'btn-loading': isUpdating }"
+              :disabled="isUpdating"
+              @click="submitEdit"
+            >
+              <span v-if="!isUpdating">Simpan Perubahan</span>
+              <span v-else class="loader-flex">
+                <div class="mini-spinner"></div> Menyimpan...
+              </span>
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </Transition>
+
   </div>
 </template>
 
@@ -410,7 +587,117 @@ onMounted(() => {
   to { transform: rotate(360deg); }
 }
 
-/* Feedback visual saat input di-disable */
+/* ── Edit Button ── */
+.btn-icon-edit {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 14px; border-radius: 100px;
+  background: #F1F5F9; color: #475569;
+  border: 1px solid #E2E8F0;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-icon-edit:hover { background: var(--primary-light); color: var(--primary); border-color: var(--primary); }
+
+/* ── Dialog Overlay ── */
+.dialog-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+
+.dialog-card {
+  background: white; border-radius: 20px;
+  width: 100%; max-width: 560px;
+  max-height: 90vh; overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+  display: flex; flex-direction: column;
+}
+
+/* Dialog Header */
+.dialog-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  padding: 24px 28px 0; gap: 12px;
+}
+.dialog-title    { font-size: 18px; font-weight: 800; color: var(--text-main); }
+.dialog-subtitle { font-size: 13px; color: var(--text-muted); margin-top: 3px; }
+
+.btn-close {
+  width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+  background: #F1F5F9; border: none; cursor: pointer; color: #475569;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s;
+}
+.btn-close:hover { background: #FEE2E2; color: var(--danger); }
+
+/* Dialog Body */
+.dialog-body { padding: 20px 28px; flex: 1; }
+
+/* Dialog Footer */
+.dialog-footer {
+  display: flex; justify-content: flex-end; gap: 10px;
+  padding: 16px 28px 24px; border-top: 1px solid var(--border);
+}
+
+.btn-cancel {
+  padding: 10px 22px; border-radius: 100px;
+  background: white; border: 1px solid var(--border);
+  font-size: 14px; font-weight: 600; cursor: pointer; color: var(--text-muted);
+  transition: background 0.15s;
+}
+.btn-cancel:hover:not(:disabled) { background: #F1F5F9; }
+.btn-cancel:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* Status Toggle */
+.status-toggle-group { display: flex; gap: 10px; margin-top: 4px; }
+
+.toggle-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 20px; border-radius: 100px;
+  border: 1.5px solid var(--border); font-size: 13px; font-weight: 600;
+  cursor: pointer; background: white; color: var(--text-muted);
+  transition: all 0.15s;
+}
+.toggle-btn.active {
+  background: var(--primary-light); color: var(--primary);
+  border-color: var(--primary);
+}
+.toggle-btn .toggle-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+
+.danger-btn { color: var(--text-muted); }
+.danger-btn.active-danger {
+  background: #FEE2E2; color: var(--danger); border-color: var(--danger);
+}
+
+/* Dialog animation */
+.dialog-fade-enter-active, .dialog-fade-leave-active { transition: opacity 0.2s ease; }
+.dialog-fade-enter-from,  .dialog-fade-leave-to      { opacity: 0; }
+.dialog-fade-enter-active .dialog-card { animation: slideUp 0.22s ease; }
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+@media (max-width: 600px) {
+  .dialog-card    { border-radius: 16px; }
+  .dialog-header  { padding: 20px 20px 0; }
+  .dialog-body    { padding: 16px 20px; }
+  .dialog-footer  { padding: 14px 20px 20px; flex-direction: column-reverse; }
+  .btn-cancel, .btn-green { width: 100%; justify-content: center; }
+}
+
+.text-sm    { font-size: 12px; }
+.text-muted { color: var(--text-muted); }
+
+/* ── Input hint text ── */
+.input-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 5px;
+}
+
+/* ── Feedback visual saat input di-disable ── */
 .main-input:disabled {
   background-color: #f1f5f9;
   cursor: not-allowed;
