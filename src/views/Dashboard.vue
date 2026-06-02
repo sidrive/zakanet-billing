@@ -172,6 +172,14 @@ const handleGenerate = async () => {
             <h2 class="stat-value text-red">Rp {{ formatRupiah(summary.totalOutstandingAll) }}</h2>
           </div>
         </div>
+        <div class="card stat-card isp-light">
+          <div class="stat-icon">🌐</div>
+          <div class="stat-content">
+            <p class="card-label">Biaya ISP (50%)</p>
+            <h2 class="stat-value text-indigo">Rp {{ formatRupiah(summary.ispCost) }}</h2>
+            <p class="stat-sublabel">Dari {{ summary.totalInvoice }} tagihan aktif</p>
+          </div>
+        </div>
       </div>
 
       <div class="stats-status-grid mt-24">
@@ -412,7 +420,7 @@ td {
 /* --- Stats Grid System --- */
 .stats-main-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 20px;
 }
 
@@ -550,6 +558,10 @@ td {
 }
 
 /* --- Responsive --- */
+@media (max-width: 1200px) {
+  .stats-main-grid { grid-template-columns: 1fr 1fr; }
+}
+
 @media (max-width: 1024px) {
   .stats-main-grid, .stats-status-grid, .dashboard-main-grid {
     grid-template-columns: 1fr;
@@ -557,4 +569,13 @@ td {
 }
 
 .col-subtext { font-size: 12px; color: var(--text-muted); }
+
+.isp-light { border-left: 4px solid #6366f1; }
+.text-indigo { color: #6366f1; }
+
+.stat-sublabel {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
 </style>

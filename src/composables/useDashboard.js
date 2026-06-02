@@ -37,6 +37,7 @@ export function useDashboard() {
     let unpaidCount = 0
     let totalRevenue = 0
     let totalOutstandingMonth = 0
+    let totalBillableAmount = 0
 
     let debtList = []
 
@@ -45,28 +46,29 @@ export function useDashboard() {
       totalInvoice++
 
       const outstanding = (data.amount || 0) - (data.paid_amount || 0)
+      totalBillableAmount += data.amount || 0
 
       if (data.status === "paid") {
         paidCount++
         totalRevenue += data.paid_amount || 0
-      } 
+      }
 
       if (data.status === "partial") {
         partialCount++
         totalRevenue += data.paid_amount || 0
         totalOutstandingMonth += outstanding
-      
+
         debtList.push({
           id: doc.id,
           ...data,
           total_outstanding: outstanding
         })
       }
-      
+
       if (data.status === "unpaid") {
         unpaidCount++
         totalOutstandingMonth += outstanding
-      
+
         debtList.push({
           id: doc.id,
           ...data,
@@ -141,7 +143,9 @@ export function useDashboard() {
       unpaidCount,
       totalRevenue,
       totalOutstandingMonth,
-      totalOutstandingAll
+      totalOutstandingAll,
+      totalBillableAmount,
+      ispCost: Math.round(totalBillableAmount / 2)
     }
 
     unpaidList.value = debtList
