@@ -1,0 +1,87 @@
+/* ========================================
+  DESIGN TOKENS — Zakanet Billing Redesign
+  Sumber tunggal untuk warna, radius, shadow, font.
+  Alias di bagian bawah menjaga kompatibilitas dengan
+  variabel lama yang masih dipakai di base.css/payment.css
+  dan di masing-masing view (--primary, --text-main, dst).
+  ========================================
+*/
+
+:root {
+  /* Background */
+  --color-page-bg: #EAEAEE;
+  --color-surface: #F6F6F8;
+  --color-card-bg: #FFFFFF;
+  --color-card-border: #EDEDF0;
+
+  /* Text */
+  --color-text-primary: #16181C;
+  --color-text-secondary: #8A8A93;
+  --color-text-tertiary: #4B4E56;
+  --color-text-quaternary: #6B6E76;
+
+  /* Dark accent surface (stat card, sidebar footer, dsb) */
+  --color-dark-surface: #111318;
+  --color-dark-surface-text: #B7BAC2;
+
+  /* Green — aksen, bukan dominan */
+  --color-green: #059669;
+  --color-green-hover: #047857;
+  --color-green-tint: #ECFDF5;
+  --color-green-tint-border: #A7F3D0;
+
+  /* Red — belum bayar / error */
+  --color-red: #DC2626;
+  --color-red-tint: #FEF2F2;
+
+  /* Orange — partial / warning */
+  --color-orange-text: #C2410C;
+  --color-orange-icon: #EA580C;
+  --color-orange-tint: #FFF7ED;
+
+  /* Neutral chip / badge nonaktif */
+  --color-chip-bg: #F1F2F4;
+  --color-chip-bg-inactive: #F4F4F5;
+  --color-chip-text: #71717A;
+
+  /* Divider */
+  --color-divider: #F2F2F4;
+  --color-divider-strong: #EDEDF0;
+
+  /* Radius */
+  --radius-card: 14px;
+  --radius-card-lg: 16px;
+  --radius-pill: 100px;
+  --radius-sheet: 24px;
+
+  /* Shadow */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+
+  /* Font */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* ── Alias kompatibilitas (dipakai base.css/payment.css & views) ── */
+  --primary: var(--color-green);
+  --primary-dark: var(--color-green-hover);
+  --primary-light: var(--color-green-tint);
+  --bg-main: var(--color-page-bg);
+  --bg-card: var(--color-card-bg);
+  --border: var(--color-card-border);
+  --text-main: var(--color-text-primary);
+  --text-muted: var(--color-text-secondary);
+  --text-on-primary: #FFFFFF;
+  --danger: var(--color-red);
+  --warning: var(--color-orange-icon);
+  --success: var(--color-green);
+  --radius-md: var(--radius-card);
+  --radius-lg: var(--radius-card-lg);
+
+  /* Alias khusus payment.css (nama variabel lama di file itu) */
+  --gojek-green: var(--color-green);
+  --gojek-dark-green: var(--color-green-hover);
+  --text-sub: var(--color-text-secondary);
+  --bg-gray: var(--color-surface);
+  --border-color: var(--color-card-border);
+  --red-status: var(--color-red);
+}

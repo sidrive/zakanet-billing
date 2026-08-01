@@ -251,15 +251,7 @@ button:disabled {
  justify-content: space-between;
 } */
 
-:root {
-  --gojek-green: #00AA13;
-  --gojek-dark-green: #008810;
-  --text-main: #1C1C1C;
-  --text-sub: #4A4A4A;
-  --bg-gray: #F2F2F2;
-  --border-color: #E8E8E8;
-  --red-status: #E63946;
-}
+/* Token warna ada di tokens.css (di-import sebelum file ini) */
 
 .payment-container {
   max-width: 1000px;
