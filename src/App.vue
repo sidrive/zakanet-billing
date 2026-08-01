@@ -1,5 +1,19 @@
+<script setup>
+import { PhHouse, PhPackage, PhUsers, PhWallet, PhChartBar, PhGift } from "@phosphor-icons/vue"
+import Toast from "@/components/Toast.vue"
+
+const navItems = [
+  { to: "/", icon: PhHouse, label: "Dasbor", bnavLabel: "Beranda" },
+  { to: "/products", icon: PhPackage, label: "Paket Layanan", bnavLabel: "Paket" },
+  { to: "/customers", icon: PhUsers, label: "Data Pelanggan", bnavLabel: "Pelanggan" },
+  { to: "/payments", icon: PhWallet, label: "Pembayaran", bnavLabel: "Bayar" },
+  { to: "/reports", icon: PhChartBar, label: "Laporan", bnavLabel: "Laporan" },
+  { to: "/promo", icon: PhGift, label: "Promo Bulanan", bnavLabel: "Promo" },
+]
+</script>
+
 <template>
-  <div class="layout" :class="{ 'mobile-nav-active': isMobileMenuOpen }">
+  <div class="layout">
     <aside class="sidebar">
       <div class="logo-wrapper">
         <div class="logo-icon">Zn</div>
@@ -7,23 +21,8 @@
       </div>
 
       <nav class="nav-menu">
-        <router-link to="/" class="nav-item">
-          <i class="icon-dashboard"></i> <span>Dasbor</span>
-        </router-link>
-        <router-link to="/products" class="nav-item">
-          <i class="icon-package"></i> <span>Paket Layanan</span>
-        </router-link>
-        <router-link to="/customers" class="nav-item">
-          <i class="icon-users"></i> <span>Data Pelanggan</span>
-        </router-link>
-        <router-link to="/payments" class="nav-item">
-          <i class="icon-wallet"></i> <span>Pembayaran</span>
-        </router-link>
-        <router-link to="/reports" class="nav-item">
-          <i class="icon-chart"></i> <span>Laporan</span>
-        </router-link>
-        <router-link to="/promo" class="nav-item">
-          <i class="icon-promo"></i> <span>Promo Bulanan</span>
+        <router-link v-for="item in navItems" :key="item.to" :to="item.to" class="nav-item">
+          <component :is="item.icon" size="18" weight="bold" /> <span>{{ item.label }}</span>
         </router-link>
       </nav>
 
@@ -48,27 +47,13 @@
       </section>
 
       <nav class="bottom-nav">
-        <router-link to="/" class="bnav-item">
-          <span class="bnav-icon">🏠</span>
-          <span class="bnav-label">Beranda</span>
-        </router-link>
-        <router-link to="/customers" class="bnav-item">
-          <span class="bnav-icon">👥</span>
-          <span class="bnav-label">Pelanggan</span>
-        </router-link>
-        <router-link to="/payments" class="bnav-item">
-          <span class="bnav-icon">💸</span>
-          <span class="bnav-label">Bayar</span>
-        </router-link>
-        <router-link to="/reports" class="bnav-item">
-          <span class="bnav-icon">📊</span>
-          <span class="bnav-label">Laporan</span>
-        </router-link>
-        <router-link to="/promo" class="bnav-item">
-          <span class="bnav-icon">🎁</span>
-          <span class="bnav-label">Promo</span>
+        <router-link v-for="item in navItems" :key="item.to" :to="item.to" class="bnav-item">
+          <component :is="item.icon" size="20" weight="bold" class="bnav-icon" />
+          <span class="bnav-label">{{ item.bnavLabel }}</span>
         </router-link>
       </nav>
     </main>
+
+    <Toast />
   </div>
 </template>

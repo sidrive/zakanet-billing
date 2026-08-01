@@ -14,6 +14,7 @@ import {
   ArcElement
 } from "chart.js"
 import { useReports } from "../composables/useReports"
+import StatusBadge from "@/components/StatusBadge.vue"
 
 ChartJS.register(
   CategoryScale, LinearScale, PointElement, LineElement,
@@ -26,7 +27,7 @@ const trendView       = ref("daily")
 const detailSearch    = ref("")
 const detailStatusFilter = ref("all")
 
-const CHART_COLORS = ["#00AA13", "#60C6FF", "#AFD3FF", "#FFB020", "#E63946"]
+const CHART_COLORS = ["#059669", "#60C6FF", "#AFD3FF", "#EA580C", "#DC2626"]
 
 onMounted(() => loadReports(selectedMonth.value))
 
@@ -66,12 +67,12 @@ const lineChartData = computed(() => {
     datasets: [{
       label: "Pendapatan",
       data: trend.data,
-      borderColor: "#00AA13",
-      backgroundColor: "rgba(0, 170, 19, 0.10)",
+      borderColor: "#059669",
+      backgroundColor: "rgba(5, 150, 105, 0.10)",
       borderWidth: 2.5,
       fill: true, tension: 0.4,
       pointRadius: 3, pointHoverRadius: 6,
-      pointBackgroundColor: "#00AA13",
+      pointBackgroundColor: "#059669",
       pointBorderColor: "#fff", pointBorderWidth: 2
     }]
   }
@@ -83,16 +84,16 @@ const lineChartOptions = {
   plugins: {
     legend: { display: false },
     tooltip: {
-      backgroundColor: "#1C1C1C", padding: 10, cornerRadius: 8,
+      backgroundColor: "#111318", padding: 10, cornerRadius: 8,
       callbacks: { label: (ctx) => "  " + formatRupiah(ctx.raw) }
     }
   },
   scales: {
-    x: { grid: { display: false }, ticks: { font: { size: 11 }, color: "#646464" } },
+    x: { grid: { display: false }, ticks: { font: { size: 11 }, color: "#8A8A93" } },
     y: {
       grid: { color: "rgba(0,0,0,0.04)", drawBorder: false },
       ticks: {
-        font: { size: 11 }, color: "#646464",
+        font: { size: 11 }, color: "#8A8A93",
         callback: (val) => {
           if (val >= 1000000) return "Rp " + (val / 1000000).toFixed(0) + "jt"
           if (val >= 1000)    return "Rp " + (val / 1000).toFixed(0) + "rb"
@@ -134,7 +135,6 @@ const filteredDetailRows = computed(() => {
   })
 })
 
-const statusLabel = { paid: "Lunas", partial: "Partial", unpaid: "Belum Bayar" }
 </script>
 
 <template>
@@ -351,9 +351,7 @@ const statusLabel = { paid: "Lunas", partial: "Partial", unpaid: "Belum Bayar" }
                   <span v-else class="badge-method manual">Manual Cash</span>
                 </td>
                 <td class="text-center">
-                  <span :class="['status-badge', row.status]">
-                    {{ statusLabel[row.status] ?? row.status }}
-                  </span>
+                  <StatusBadge :variant="row.status" />
                 </td>
                 <td class="text-right text-bold">{{ formatRupiah(row.amount) }}</td>
                 <td class="text-right">
@@ -398,9 +396,7 @@ const statusLabel = { paid: "Lunas", partial: "Partial", unpaid: "Belum Bayar" }
                 </div>
               </div>
               <div class="badge-stack">
-                <span :class="['status-badge', row.status]">
-                  {{ statusLabel[row.status] ?? row.status }}
-                </span>
+                <StatusBadge :variant="row.status" />
                 <span
                   v-if="row.status !== 'unpaid'"
                   :class="['badge-method', row.auto_subscribed ? 'auto' : 'manual']"
@@ -474,31 +470,31 @@ const statusLabel = { paid: "Lunas", partial: "Partial", unpaid: "Belum Bayar" }
 }
 
 .period-select-wrapper { display: flex; align-items: center; gap: 10px; }
-.period-label { font-size: 14px; font-weight: 600; color: var(--text-muted); white-space: nowrap; }
+.period-label { font-size: 14px; font-weight: 600; color: var(--color-text-secondary); white-space: nowrap; }
 
 .period-select {
   padding: 8px 14px;
-  border: 1px solid var(--border);
-  border-radius: 100px;
+  border: 1px solid var(--color-card-border);
+  border-radius: var(--radius-pill);
   font-size: 14px; font-weight: 600;
   background: white; cursor: pointer;
-  width: auto; color: var(--text-main);
+  width: auto; color: var(--color-text-primary);
 }
 
 .btn-download {
   display: flex; align-items: center; gap: 8px;
   padding: 8px 18px;
-  background: white; border: 1px solid var(--border);
-  border-radius: 100px; font-size: 13px; font-weight: 600;
-  cursor: pointer; color: var(--text-main);
+  background: white; border: 1px solid var(--color-card-border);
+  border-radius: var(--radius-pill); font-size: 13px; font-weight: 600;
+  cursor: pointer; color: var(--color-text-primary);
   transition: background 0.15s; white-space: nowrap; flex-shrink: 0;
 }
-.btn-download:hover { background: var(--bg-main); }
+.btn-download:hover { background: var(--color-page-bg); }
 
 /* ═══════════════════════════════════════════
    SECTION LABEL
 ════════════════════════════════════════════ */
-.section-label { font-size: 16px; font-weight: 700; color: var(--text-main); margin-bottom: 16px; }
+.section-label { font-size: 16px; font-weight: 700; color: var(--color-text-primary); margin-bottom: 16px; }
 
 /* ═══════════════════════════════════════════
    SUMMARY CARDS — 4 cols → 2 cols → 1 col
@@ -516,18 +512,18 @@ const statusLabel = { paid: "Lunas", partial: "Partial", unpaid: "Belum Bayar" }
   width: 48px; height: 48px; border-radius: 14px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center; font-size: 22px;
 }
-.icon-green  { background: #E5F6E7; }
+.icon-green  { background: var(--color-green-tint); }
 .icon-blue   { background: #EFF6FF; }
-.icon-orange { background: #FFF4E5; }
-.icon-dark   { background: #F1F5F9; }
+.icon-orange { background: var(--color-orange-tint); }
+.icon-dark   { background: var(--color-chip-bg); }
 
 .summary-text { min-width: 0; }
 .summary-value {
-  font-size: 18px; font-weight: 800; color: var(--text-main);
+  font-size: 18px; font-weight: 800; color: var(--color-text-primary);
   margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.autopay-rate { color: var(--primary); }
-.card-sublabel { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.autopay-rate { color: var(--color-green); }
+.card-sublabel { font-size: 11px; color: var(--color-text-secondary); margin-top: 2px; }
 
 /* ═══════════════════════════════════════════
    CHARTS GRID — side-by-side → stacked
@@ -546,13 +542,13 @@ const statusLabel = { paid: "Lunas", partial: "Partial", unpaid: "Belum Bayar" }
   display: flex; align-items: center; justify-content: space-between;
   margin-bottom: 16px;
 }
-.chart-title { font-size: 15px; font-weight: 700; color: var(--text-main); }
+.chart-title { font-size: 15px; font-weight: 700; color: var(--color-text-primary); }
 .mb-12 { margin-bottom: 12px; }
 
 .trend-select {
-  padding: 5px 14px; border: 1px solid var(--border); border-radius: 100px;
+  padding: 5px 14px; border: 1px solid var(--color-card-border); border-radius: var(--radius-pill);
   font-size: 12px; font-weight: 600; background: white; cursor: pointer;
-  width: auto; color: var(--text-main);
+  width: auto; color: var(--color-text-primary);
 }
 
 .chart-body { height: 280px; position: relative; }
@@ -578,70 +574,60 @@ const statusLabel = { paid: "Lunas", partial: "Partial", unpaid: "Belum Bayar" }
 .card-header-table {
   padding: 20px 24px;
   display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;
-  gap: 16px; border-bottom: 1px solid var(--border);
+  gap: 16px; border-bottom: 1px solid var(--color-card-border);
 }
-.card-inner-title   { font-size: 16px; font-weight: 700; color: var(--text-main); }
-.card-inner-subtitle { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+.card-inner-title   { font-size: 16px; font-weight: 700; color: var(--color-text-primary); }
+.card-inner-subtitle { font-size: 13px; color: var(--color-text-secondary); margin-top: 2px; }
 
 .filter-group { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 
 .search-input {
-  background: #f8fafc; border: 1px solid var(--border);
-  padding: 8px 16px; border-radius: 100px;
+  background: var(--color-surface); border: 1px solid var(--color-card-border);
+  padding: 8px 16px; border-radius: var(--radius-pill);
   font-size: 13px; width: 200px;
 }
-.select-filter { width: auto !important; cursor: pointer; background-color: #fff; }
+.select-filter { width: auto !important; cursor: pointer; background-color: var(--color-card-bg); }
 
 /* ── Desktop Table ── */
 .detail-table th, .detail-table td { padding: 14px 16px; font-size: 13px; }
 
 .customer-info-cell { display: flex; align-items: center; gap: 10px; }
 .mini-avatar {
-  width: 30px; height: 30px; background: var(--primary-light); color: var(--primary);
+  width: 30px; height: 30px; background: var(--color-green-tint); color: var(--color-green);
   border-radius: 8px; display: flex; align-items: center; justify-content: center;
   font-weight: 700; font-size: 13px; flex-shrink: 0;
 }
-.col-name    { font-weight: 600; color: var(--text-main); }
-.col-subtext { font-size: 12px; color: var(--text-muted); }
+.col-name    { font-weight: 600; color: var(--color-text-primary); }
+.col-subtext { font-size: 12px; color: var(--color-text-secondary); }
 
 /* Method badges */
 .badge-method {
   display: inline-block; padding: 3px 10px;
-  border-radius: 100px; font-size: 11px; font-weight: 700;
+  border-radius: var(--radius-pill); font-size: 11px; font-weight: 700;
 }
-.badge-method.auto   { background: #E5F6E7; color: #00AA13; }
-.badge-method.manual { background: #F1F5F9; color: #475569; }
+.badge-method.auto   { background: var(--color-green-tint); color: var(--color-green); }
+.badge-method.manual { background: var(--color-chip-bg); color: var(--color-text-tertiary); }
 
-/* Status badges */
-.status-badge {
-  display: inline-block; padding: 4px 12px;
-  border-radius: 100px; font-size: 11px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.4px;
-}
-.status-badge.paid    { background: #DCFCE7; color: #16A34A; border: 1px solid #BBF7D0; }
-.status-badge.partial { background: #FFF7ED; color: #EA580C; border: 1px solid #FFEDD5; }
-.status-badge.unpaid  { background: #FEE2E2; color: #DC2626; border: 1px solid #FECACA; }
-
-.note-text { font-size: 12px; color: var(--text-muted); max-width: 160px; display: block; }
+.note-text { font-size: 12px; color: var(--color-text-secondary); max-width: 160px; display: block; }
 
 /* Table footer */
 .table-footer {
-  padding: 12px 24px; font-size: 12px; color: var(--text-muted);
-  border-top: 1px solid var(--border); background: #FAFAFA;
+  padding: 12px 24px; font-size: 12px; color: var(--color-text-secondary);
+  border-top: 1px solid var(--color-card-border); background: var(--color-surface);
 }
 
 /* ── Mobile Cards ── */
 .detail-cards { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
 
 .detail-card {
-  border: 1px solid var(--border); border-radius: var(--radius-md);
+  border: 1px solid var(--color-card-border); border-radius: var(--radius-card);
   background: white; overflow: hidden;
 }
 
 .detail-card-header {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 16px; border-bottom: 1px solid var(--border);
-  background: #FAFAFA; gap: 12px;
+  padding: 14px 16px; border-bottom: 1px solid var(--color-card-border);
+  background: var(--color-surface); gap: 12px;
 }
 
 .badge-stack { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; }
@@ -652,18 +638,18 @@ const statusLabel = { paid: "Lunas", partial: "Partial", unpaid: "Belum Bayar" }
 
 .card-stat-item {
   padding: 12px 16px; display: flex; flex-direction: column; gap: 3px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--color-card-border);
 }
 .card-stat-item:nth-child(odd):not(.card-stat-full) {
-  border-right: 1px solid var(--border);
+  border-right: 1px solid var(--color-card-border);
 }
 .card-stat-full { grid-column: 1 / -1; }
 .card-stat-item:last-child { border-bottom: none; }
 
-.stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); font-weight: 600; }
-.stat-value { font-size: 13px; color: var(--text-main); }
+.stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--color-text-secondary); font-weight: 600; }
+.stat-value { font-size: 13px; color: var(--color-text-primary); }
 
-.mobile-empty { padding: 40px 20px; text-align: center; color: var(--text-muted); font-size: 14px; }
+.mobile-empty { padding: 40px 20px; text-align: center; color: var(--color-text-secondary); font-size: 14px; }
 
 /* ═══════════════════════════════════════════
    VISIBILITY TOGGLE: DESKTOP / MOBILE
@@ -676,9 +662,9 @@ const statusLabel = { paid: "Lunas", partial: "Partial", unpaid: "Belum Bayar" }
 ════════════════════════════════════════════ */
 .text-right  { text-align: right; }
 .text-bold   { font-weight: 700; }
-.text-green  { color: var(--primary); }
-.text-danger { color: var(--danger); }
-.text-muted  { color: var(--text-muted); }
+.text-green  { color: var(--color-green); }
+.text-danger { color: var(--color-red); }
+.text-muted  { color: var(--color-text-secondary); }
 .no-padding  { padding: 0; }
 
 /* ═══════════════════════════════════════════
@@ -686,19 +672,19 @@ const statusLabel = { paid: "Lunas", partial: "Partial", unpaid: "Belum Bayar" }
 ════════════════════════════════════════════ */
 .loading-card {
   display: flex; flex-direction: column; align-items: center;
-  padding: 80px; gap: 16px; color: var(--text-muted);
+  padding: 80px; gap: 16px; color: var(--color-text-secondary);
 }
 .spinner {
-  width: 36px; height: 36px; border: 4px solid var(--border);
-  border-top-color: var(--primary); border-radius: 50%;
+  width: 36px; height: 36px; border: 4px solid var(--color-card-border);
+  border-top-color: var(--color-green); border-radius: 50%;
   animation: spin 1s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-.error-card     { padding: 40px; text-align: center; color: var(--danger); }
-.empty-state    { padding: 48px !important; text-align: center; color: var(--text-muted); }
+.error-card     { padding: 40px; text-align: center; color: var(--color-red); }
+.empty-state    { padding: 48px !important; text-align: center; color: var(--color-text-secondary); }
 .empty-box p    { font-size: 14px; }
-.empty-state-text { text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px 0; }
+.empty-state-text { text-align: center; color: var(--color-text-secondary); font-size: 13px; padding: 20px 0; }
 
 /* ═══════════════════════════════════════════
    RESPONSIVE BREAKPOINTS

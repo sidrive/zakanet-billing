@@ -249,44 +249,18 @@ onMounted(async () => {
             <span class="count-badge">{{ eligibleQueue.length }} pelanggan</span>
           </div>
 
-          <div class="table-wrapper">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Pelanggan</th>
-                  <th>Paket</th>
-                  <th>Bergabung</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="c in eligibleQueue" :key="c.id">
-                  <td>
-                    <div class="customer-info-cell">
-                      <div class="mini-avatar">{{ c.name?.charAt(0) }}</div>
-                      <div>
-                        <div class="col-name">{{ c.name }}</div>
-                        <div class="col-subtext">{{ c.phone || '-' }}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    <span class="pkg-badge">{{ c.product_name || 'Custom' }}</span>
-                  </td>
-                  <td>
-                    <span class="text-muted text-sm">{{ formatJoinDate(c.join_date) }}</span>
-                  </td>
-                </tr>
-                <tr v-if="eligibleQueue.length === 0">
-                  <td colspan="3" class="empty-state">
-                    <div class="empty-box">
-                      <span class="empty-icon">🎉</span>
-                      <p>Semua pelanggan sudah menang di batch ini!</p>
-                      <p class="text-muted text-sm">Batch baru dimulai pada undian berikutnya</p>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+          <div class="queue-list">
+            <div v-for="c in eligibleQueue" :key="c.id" class="queue-row">
+              <span class="queue-row__name">{{ c.name }}</span>
+              <span class="queue-row__meta">{{ c.product_name || 'Custom' }} · {{ formatJoinDate(c.join_date) }}</span>
+            </div>
+            <div v-if="eligibleQueue.length === 0" class="empty-state">
+              <div class="empty-box">
+                <span class="empty-icon">🎉</span>
+                <p>Semua pelanggan sudah menang di batch ini!</p>
+                <p class="text-muted text-sm">Batch baru dimulai pada undian berikutnya</p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -393,11 +367,11 @@ onMounted(async () => {
 /* ── Loading ── */
 .loading-card {
   display: flex; flex-direction: column; align-items: center;
-  padding: 80px; gap: 16px; color: var(--text-muted);
+  padding: 80px; gap: 16px; color: var(--color-text-secondary);
 }
 .spinner {
-  width: 36px; height: 36px; border: 4px solid var(--border);
-  border-top-color: var(--primary); border-radius: 50%;
+  width: 36px; height: 36px; border: 4px solid var(--color-card-border);
+  border-top-color: var(--color-green); border-radius: 50%;
   animation: spin 1s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -409,28 +383,28 @@ onMounted(async () => {
   gap: 16px; margin-bottom: 24px;
 }
 
-.section-title    { font-size: 24px; font-weight: 800; color: var(--text-main); }
-.section-subtitle { font-size: 14px; color: var(--text-muted); margin-top: 4px; }
+.section-title    { font-size: 24px; font-weight: 800; color: var(--color-text-primary); }
+.section-subtitle { font-size: 14px; color: var(--color-text-secondary); margin-top: 4px; }
 
 .header-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 
 /* Auto-Draw Toggle Row */
 .toggle-row {
   display: flex; align-items: center; gap: 10px; cursor: pointer;
-  background: white; border: 1px solid var(--border);
-  padding: 8px 16px; border-radius: 100px;
+  background: white; border: 1px solid var(--color-card-border);
+  padding: 8px 16px; border-radius: var(--radius-pill);
   transition: border-color 0.15s;
 }
-.toggle-row:hover { border-color: var(--primary); }
-.toggle-label { font-size: 13px; font-weight: 600; color: var(--text-main); white-space: nowrap; }
+.toggle-row:hover { border-color: var(--color-green); }
+.toggle-label { font-size: 13px; font-weight: 600; color: var(--color-text-primary); white-space: nowrap; }
 
 /* Switch toggle */
 .switch {
-  width: 40px; height: 22px; border-radius: 100px;
+  width: 40px; height: 22px; border-radius: var(--radius-pill);
   position: relative; cursor: pointer; transition: background 0.2s;
   flex-shrink: 0;
 }
-.switch.on  { background: var(--primary); }
+.switch.on  { background: var(--color-green); }
 .switch.off { background: #CBD5E1; }
 .switch.lg  { width: 52px; height: 28px; }
 
@@ -448,18 +422,18 @@ onMounted(async () => {
 /* Draw buttons */
 .btn-draw {
   display: flex; align-items: center; gap: 8px;
-  padding: 9px 20px; background: var(--primary); color: white;
-  border-radius: 100px; font-size: 14px; font-weight: 700;
+  padding: 9px 20px; background: var(--color-green); color: white;
+  border-radius: var(--radius-pill); font-size: 14px; font-weight: 700;
   border: none; cursor: pointer; transition: background 0.15s;
   white-space: nowrap;
 }
-.btn-draw:hover:not(:disabled) { background: var(--primary-dark); }
+.btn-draw:hover:not(:disabled) { background: var(--color-green-hover); }
 .btn-draw:disabled { opacity: 0.7; cursor: not-allowed; }
 
 .badge-done {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 8px 16px; background: #DCFCE7; color: #16A34A;
-  border: 1px solid #BBF7D0; border-radius: 100px;
+  padding: 8px 16px; background: var(--color-green-tint); color: var(--color-green);
+  border: 1px solid var(--color-green-tint-border); border-radius: var(--radius-pill);
   font-size: 13px; font-weight: 700;
 }
 
@@ -469,12 +443,12 @@ onMounted(async () => {
   gap: 16px; margin-bottom: 24px;
 }
 .stat-mini { padding: 18px 20px; }
-.stat-mini-label { font-size: 12px; color: var(--text-muted); font-weight: 500; }
-.stat-mini-value { font-size: 22px; font-weight: 800; color: var(--text-main); margin-top: 4px; }
-.stat-mini-value.green { color: var(--primary); }
+.stat-mini-label { font-size: 12px; color: var(--color-text-secondary); font-weight: 500; }
+.stat-mini-value { font-size: 22px; font-weight: 800; color: var(--color-text-primary); margin-top: 4px; }
+.stat-mini-value.green { color: var(--color-green); }
 
 /* ── Section Label ── */
-.section-label { font-size: 16px; font-weight: 700; color: var(--text-main); margin-bottom: 16px; }
+.section-label { font-size: 16px; font-weight: 700; color: var(--color-text-primary); margin-bottom: 16px; }
 .mt-0 { margin-top: 0; }
 
 /* ── Winner Cards ── */
@@ -490,8 +464,8 @@ onMounted(async () => {
 }
 
 .winner-gold {
-  background: linear-gradient(135deg, #00AA13 0%, #007A0D 100%);
-  box-shadow: 0 8px 30px rgba(0, 170, 19, 0.30);
+  background: linear-gradient(135deg, var(--color-green) 0%, var(--color-green-hover) 100%);
+  box-shadow: 0 8px 30px rgba(5, 150, 105, 0.30);
 }
 .winner-silver {
   background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
@@ -521,18 +495,18 @@ onMounted(async () => {
 
 .winner-badges { margin-top: 4px; }
 .winner-badge {
-  display: inline-block; padding: 4px 12px; border-radius: 100px;
+  display: inline-block; padding: 4px 12px; border-radius: var(--radius-pill);
   font-size: 11px; font-weight: 700;
 }
 .winner-badge.applied { background: rgba(255,255,255,0.25); color: white; }
 .winner-badge.pending { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); }
 
 .winner-empty {
-  background: #F8FAFC; border: 2px dashed var(--border);
+  background: var(--color-surface); border: 2px dashed var(--color-card-border);
   box-shadow: none; justify-content: center;
 }
 .winner-empty .winner-trophy { font-size: 40px; }
-.winner-empty-text { font-size: 14px; color: var(--text-muted); max-width: 200px; }
+.winner-empty-text { font-size: 14px; color: var(--color-text-secondary); max-width: 200px; }
 
 /* ── No Draw Card ── */
 .no-draw-card {
@@ -541,16 +515,16 @@ onMounted(async () => {
   margin-bottom: 24px;
 }
 .no-draw-icon  { font-size: 56px; }
-.no-draw-title { font-size: 20px; font-weight: 800; color: var(--text-main); }
-.no-draw-sub   { font-size: 14px; color: var(--text-muted); max-width: 400px; }
+.no-draw-title { font-size: 20px; font-weight: 800; color: var(--color-text-primary); }
+.no-draw-sub   { font-size: 14px; color: var(--color-text-secondary); max-width: 400px; }
 
 .btn-draw-lg {
   display: inline-flex; align-items: center; gap: 10px; margin-top: 8px;
-  padding: 12px 28px; background: var(--primary); color: white;
-  border-radius: 100px; font-size: 15px; font-weight: 700;
+  padding: 12px 28px; background: var(--color-green); color: white;
+  border-radius: var(--radius-pill); font-size: 15px; font-weight: 700;
   border: none; cursor: pointer; transition: background 0.15s;
 }
-.btn-draw-lg:hover:not(:disabled) { background: var(--primary-dark); }
+.btn-draw-lg:hover:not(:disabled) { background: var(--color-green-hover); }
 .btn-draw-lg:disabled { opacity: 0.7; cursor: not-allowed; }
 
 /* ── Main Grid ── */
@@ -563,63 +537,61 @@ onMounted(async () => {
 .card-header-table {
   padding: 20px 24px;
   display: flex; justify-content: space-between; align-items: flex-start;
-  border-bottom: 1px solid var(--border); gap: 12px;
+  border-bottom: 1px solid var(--color-card-border); gap: 12px;
 }
-.card-inner-title    { font-size: 15px; font-weight: 700; color: var(--text-main); }
-.card-inner-subtitle { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+.card-inner-title    { font-size: 15px; font-weight: 700; color: var(--color-text-primary); }
+.card-inner-subtitle { font-size: 13px; color: var(--color-text-secondary); margin-top: 2px; }
 
 .count-badge {
-  background: #F1F5F9; color: #475569; padding: 4px 12px;
-  border-radius: 100px; font-size: 12px; font-weight: 700; white-space: nowrap;
+  background: var(--color-chip-bg); color: var(--color-text-tertiary); padding: 4px 12px;
+  border-radius: var(--radius-pill); font-size: 12px; font-weight: 700; white-space: nowrap;
 }
 
-.customer-info-cell { display: flex; align-items: center; gap: 10px; }
-.mini-avatar {
-  width: 30px; height: 30px; background: var(--primary-light); color: var(--primary);
-  border-radius: 8px; display: flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: 13px; flex-shrink: 0;
+.queue-list { padding: 4px 8px; }
+.queue-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--color-divider);
+  font-size: 13px;
 }
-.col-name    { font-weight: 600; font-size: 13px; color: var(--text-main); }
-.col-subtext { font-size: 12px; color: var(--text-muted); }
+.queue-row:last-child { border-bottom: none; }
+.queue-row__name { font-weight: 600; color: var(--color-text-primary); }
+.queue-row__meta { color: var(--color-text-secondary); }
 
-.pkg-badge {
-  background: #F1F5F9; padding: 3px 8px; border-radius: 6px;
-  font-size: 12px; font-weight: 600; color: #475569; display: inline-block;
-}
-
-.text-muted { color: var(--text-muted); }
+.text-muted { color: var(--color-text-secondary); }
 .text-sm    { font-size: 12px; }
 
 /* ── History Panel ── */
 .history-scroll { max-height: 400px; overflow-y: auto; }
 
-.history-group { padding: 16px 24px; border-bottom: 1px solid var(--border); }
+.history-group { padding: 16px 24px; border-bottom: 1px solid var(--color-card-border); }
 .history-group:last-child { border-bottom: none; }
 
 .history-month-header {
   display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
 }
-.history-month-label { font-size: 13px; font-weight: 700; color: var(--text-main); }
+.history-month-label { font-size: 13px; font-weight: 700; color: var(--color-text-primary); }
 
 .badge-current {
-  background: var(--primary-light); color: var(--primary);
-  padding: 2px 8px; border-radius: 100px; font-size: 10px; font-weight: 700;
+  background: var(--color-green-tint); color: var(--color-green);
+  padding: 2px 8px; border-radius: var(--radius-pill); font-size: 10px; font-weight: 700;
 }
 .badge-history {
-  background: #F1F5F9; color: #94A3B8;
-  padding: 2px 8px; border-radius: 100px; font-size: 10px; font-weight: 700;
+  background: var(--color-chip-bg); color: var(--color-chip-text);
+  padding: 2px 8px; border-radius: var(--radius-pill); font-size: 10px; font-weight: 700;
 }
 
 .history-winners-row { display: flex; gap: 10px; flex-wrap: wrap; }
 
 .history-winner-chip {
   display: flex; align-items: center; gap: 6px;
-  background: #F8FAFC; border: 1px solid var(--border);
-  border-radius: 100px; padding: 6px 14px;
+  background: var(--color-surface); border: 1px solid var(--color-card-border);
+  border-radius: var(--radius-pill); padding: 6px 14px;
 }
 .chip-rank     { font-size: 14px; }
-.chip-name     { font-size: 13px; font-weight: 600; color: var(--text-main); }
-.chip-discount { font-size: 11px; color: var(--primary); font-weight: 700; }
+.chip-name     { font-size: 13px; font-weight: 600; color: var(--color-text-primary); }
+.chip-discount { font-size: 11px; color: var(--color-green); font-weight: 700; }
 
 /* ── Empty State ── */
 .empty-state { padding: 48px 20px !important; text-align: center; }
@@ -636,22 +608,22 @@ onMounted(async () => {
 
 .setting-input-row { display: flex; align-items: center; gap: 12px; }
 .setting-input { width: 160px !important; font-weight: 700; }
-.setting-hint  { font-size: 12px; color: var(--text-muted); }
+.setting-hint  { font-size: 12px; color: var(--color-text-secondary); }
 
 .setting-toggle-area {
   display: flex; align-items: center; gap: 14px; cursor: pointer;
-  padding: 12px 16px; background: #F8FAFC; border-radius: 12px;
-  border: 1px solid var(--border); transition: border-color 0.15s;
+  padding: 12px 16px; background: var(--color-surface); border-radius: 12px;
+  border: 1px solid var(--color-card-border); transition: border-color 0.15s;
 }
-.setting-toggle-area:hover { border-color: var(--primary); }
-.toggle-status-text { font-size: 14px; font-weight: 700; color: var(--text-main); }
+.setting-toggle-area:hover { border-color: var(--color-green); }
+.toggle-status-text { font-size: 14px; font-weight: 700; color: var(--color-text-primary); }
 
 /* ── Loading button state ── */
 .btn-loading { opacity: 0.8; cursor: not-allowed !important; }
 .loader-flex { display: flex; align-items: center; gap: 8px; }
 .mini-spinner {
   width: 16px; height: 16px;
-  border: 2px solid rgba(0,170,19,0.3); border-top-color: var(--primary);
+  border: 2px solid rgba(5,150,105,0.3); border-top-color: var(--color-green);
   border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0;
 }
 .mini-spinner.white {
