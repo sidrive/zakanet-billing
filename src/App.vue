@@ -1,5 +1,6 @@
 <script setup>
 import { PhHouse, PhPackage, PhUsers, PhWallet, PhChartBar, PhGift } from "@phosphor-icons/vue"
+import Toast from "@/components/Toast.vue"
 
 const navItems = [
   { to: "/", icon: PhHouse, label: "Dasbor", bnavLabel: "Beranda" },
@@ -52,5 +53,7 @@ const navItems = [
         </router-link>
       </nav>
     </main>
+
+    <Toast />
   </div>
 </template>
