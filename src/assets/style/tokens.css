@@ -2,8 +2,8 @@
   DESIGN TOKENS — Zakanet Billing Redesign
   Sumber tunggal untuk warna, radius, shadow, font.
   Alias di bagian bawah menjaga kompatibilitas dengan
-  variabel lama yang masih dipakai di base.css/payment.css
-  dan di masing-masing view (--primary, --text-main, dst).
+  variabel lama yang masih dipakai base.css (--primary,
+  --text-main, dst).
   ========================================
 */
 
@@ -61,7 +61,7 @@
   /* Font */
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 
-  /* ── Alias kompatibilitas (dipakai base.css/payment.css & views) ── */
+  /* ── Alias kompatibilitas (dipakai base.css) ── */
   --primary: var(--color-green);
   --primary-dark: var(--color-green-hover);
   --primary-light: var(--color-green-tint);
@@ -76,12 +76,4 @@
   --success: var(--color-green);
   --radius-md: var(--radius-card);
   --radius-lg: var(--radius-card-lg);
-
-  /* Alias khusus payment.css (nama variabel lama di file itu) */
-  --gojek-green: var(--color-green);
-  --gojek-dark-green: var(--color-green-hover);
-  --text-sub: var(--color-text-secondary);
-  --bg-gray: var(--color-surface);
-  --border-color: var(--color-card-border);
-  --red-status: var(--color-red);
 }
