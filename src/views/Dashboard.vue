@@ -2,10 +2,12 @@
 import { onMounted } from "vue"
 import { useDashboard } from "../composables/useDashboard"
 import { checkAndAutoDraw } from "@/services/promoService"
+import StatusBadge from "@/components/StatusBadge.vue"
 
 const { summary, unpaidList, loadDashboard, recentPayments, ensureMonthlyInvoices } = useDashboard()
 
 const currentMonth = new Date().toISOString().slice(0, 7)
+const todayLabel = new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })
 
 onMounted(async () => {
   await ensureMonthlyInvoices(currentMonth)
@@ -24,131 +26,15 @@ const formatDate = (timestamp) => {
   return date.toLocaleDateString("id-ID")
 }
 
-const handleGenerate = async () => {
-  await ensureMonthlyInvoices(currentMonth)
-  await loadDashboard(currentMonth)
-}
+const initials = (name) => (name || "?").charAt(0).toUpperCase()
 </script>
 
-<!-- <template>
-  <div class="dashboard-container">
-    <h1 class="page-title">Dashboard</h1>
-
-    <div v-if="summary" class="card-grid">
-      <div class="card">
-        <p class="card-label">Total Invoice</p>
-        <h2>{{ summary.totalInvoice }}</h2>
-      </div>
-
-      <div class="card success">
-        <p class="card-label">Sudah Bayar</p>
-        <h2>{{ summary.paidCount }}</h2>
-      </div>
-
-      <div class="card danger">
-        <p class="card-label">Belum Bayar</p>
-        <h2>{{ summary.unpaidCount }}</h2>
-      </div>
-
-      <div class="card highlight">
-        <p class="card-label">Pendapatan</p>
-        <h2>Rp {{ formatRupiah(summary.totalRevenue) }}</h2>
-      </div>
-
-      <div class="card warning">
-        <p class="card-label">Partial</p>
-        <h2>{{ summary.partialCount }}</h2>
-      </div>
-
-      <div class="card warning">
-        <p class="card-label">Piutang Bulan Ini</p>
-        <h2>Rp {{ formatRupiah(summary.totalOutstandingMonth) }}</h2>
-      </div>
-
-      <div class="card danger">
-        <p class="card-label">Total Piutang Aktif</p>
-        <h2>Rp {{ formatRupiah(summary.totalOutstandingAll) }}</h2>
-      </div>
-    </div>
-
-    <div class="table-wrapper">
-      <h2 class="section-title">Pelanggan Belum Bayar</h2>
-
-      <table v-if="unpaidList.length">
-        <thead>
-          <tr>
-            <th>Customer</th>
-            <th>Tagihan</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="item in unpaidList" :key="item.id">
-            <td>{{ item.customer_name }}</td>
-            <td>
-              Rp {{ formatRupiah(item.total_outstanding) }}
-              <div v-if="item.status === 'partial'" class="small-info">
-                (Dari Rp {{ formatRupiah(item.amount) }})
-              </div>
-            </td>
-            <td>
-              <span
-                v-if="item.status === 'unpaid'"
-                class="badge danger"
-              >
-                Unpaid
-              </span>
-
-              <span
-                v-else-if="item.status === 'partial'"
-                class="badge warning"
-              >
-                Partial
-              </span>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-
-      <div v-else class="empty">
-        🎉 Semua pelanggan sudah bayar bulan ini
-      </div>
-    </div>
-
-    <div class="mini-log">
-      <h2 class="section-title">Pembayaran Terbaru</h2>
-
-      <div v-if="recentPayments.length">
-        <div
-          v-for="item in recentPayments"
-          :key="item.id"
-          class="log-item"
-        >
-          <div>
-            <strong>{{ item.name || item.customer_id }}</strong>
-            bayar Rp {{ formatRupiah(item.amount) }}
-          </div>
-          <small>{{ formatDate(item.created_at) }}</small>
-        </div>
-      </div>
-
-      <div v-else class="empty">
-        Belum ada pembayaran terbaru
-      </div>
-    </div>
-  </div>
-</template> -->
 <template>
   <div class="dashboard-page">
-    <!-- <header class="section-header">
-      <div>
-        <h2 class="section-title">Ringkasan Bisnis</h2>
-        <p class="section-subtitle">Pantau kesehatan keuangan dan status tagihan hari ini</p>
-      </div>
-      <button class="btn-outline" @click="handleGenerate">
-        <span>🔄</span> Sinkron Invoice
-      </button>
-    </header> -->
+    <div class="dashboard-greeting">
+      <div class="dashboard-greeting__hello">Halo, Admin 👋</div>
+      <div class="dashboard-greeting__date">{{ todayLabel }}</div>
+    </div>
 
     <div v-if="!summary" class="card loading-card">
       <div class="spinner"></div>
@@ -156,113 +42,74 @@ const handleGenerate = async () => {
     </div>
 
     <div v-else class="dashboard-content animate-fade-in">
-      
+
       <div class="stats-main-grid">
-        <div class="card stat-card highlight">
-          <div class="stat-icon">💰</div>
-          <div class="stat-content">
-            <p class="card-label">Total Pendapatan</p>
-            <h2 class="stat-value">Rp {{ formatRupiah(summary.totalRevenue) }}</h2>
-          </div>
+        <div class="stat-card stat-card--dark">
+          <p class="stat-card__label">Pendapatan Bulan Ini</p>
+          <h2 class="stat-card__value">Rp {{ formatRupiah(summary.totalRevenue) }}</h2>
         </div>
-        <div class="card stat-card danger-light">
-          <div class="stat-icon">📉</div>
-          <div class="stat-content">
-            <p class="card-label">Total Piutang Aktif</p>
-            <h2 class="stat-value text-red">Rp {{ formatRupiah(summary.totalOutstandingAll) }}</h2>
-          </div>
+        <div class="stat-card">
+          <p class="stat-card__label">Piutang Aktif</p>
+          <h2 class="stat-card__value stat-card__value--red">Rp {{ formatRupiah(summary.totalOutstandingAll) }}</h2>
         </div>
-        <div class="card stat-card isp-light">
-          <div class="stat-icon">🌐</div>
-          <div class="stat-content">
-            <p class="card-label">Biaya ISP (50%)</p>
-            <h2 class="stat-value text-indigo">Rp {{ formatRupiah(summary.ispCost) }}</h2>
-            <p class="stat-sublabel">Dari {{ summary.totalInvoice }} tagihan aktif</p>
-          </div>
+        <div class="stat-card">
+          <p class="stat-card__label">Biaya ISP (50%)</p>
+          <h2 class="stat-card__value">Rp {{ formatRupiah(summary.ispCost) }}</h2>
+          <p class="stat-card__sublabel">Dari {{ summary.totalInvoice }} tagihan aktif</p>
         </div>
       </div>
 
-      <div class="stats-status-grid mt-24">
-        <div class="card status-card border-green">
-          <p class="card-label">Sudah Bayar</p>
-          <div class="status-content">
-            <h2 class="text-green">{{ summary.paidCount }}</h2>
-            <span class="status-unit">Pelanggan</span>
-          </div>
+      <div class="mini-stats-grid">
+        <div class="mini-stat">
+          <div class="mini-stat__value mini-stat__value--green">{{ summary.paidCount }}</div>
+          <div class="mini-stat__label">Lunas</div>
         </div>
-        <div class="card status-card border-red">
-          <p class="card-label">Belum Bayar</p>
-          <div class="status-content">
-            <h2 class="text-red">{{ summary.unpaidCount }}</h2>
-            <span class="status-unit">Pelanggan</span>
-          </div>
+        <div class="mini-stat">
+          <div class="mini-stat__value mini-stat__value--orange">{{ summary.partialCount }}</div>
+          <div class="mini-stat__label">Partial</div>
         </div>
-        <div class="card status-card border-orange">
-          <p class="card-label">Pembayaran Partial</p>
-          <div class="status-content">
-            <h2 class="text-orange">{{ summary.partialCount }}</h2>
-            <span class="status-unit">Pelanggan</span>
-          </div>
+        <div class="mini-stat">
+          <div class="mini-stat__value mini-stat__value--red">{{ summary.unpaidCount }}</div>
+          <div class="mini-stat__label">Belum Bayar</div>
         </div>
       </div>
 
-      <div class="dashboard-main-grid mt-24">
-        
-        <div class="card no-padding overflow-hidden">
-          <div class="card-header-table">
-            <h4 class="table-title">Pelanggan Belum Bayar</h4>
-          </div>
-          <div class="table-wrapper">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>PELANGGAN</th>
-                  <th>SISA TAGIHAN</th>
-                  <th class="text-center">STATUS</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="item in unpaidList" :key="item.id">
-                  <td>
-                    <div class="col-name">{{ item.customer_name }}</div>
-                  </td>
-                  <td>
-                    <div class="text-bold">Rp {{ formatRupiah(item.total_outstanding) }}</div>
-                    <div v-if="item.status === 'partial'" class="col-subtext">
-                      (Dari Rp {{ formatRupiah(item.amount) }})
-                    </div>
-                  </td>
-                  <td class="text-center">
-                    <span :class="['status-badge', item.status]">
-                      {{ item.status === 'unpaid' ? 'Belum Bayar' : 'Partial' }}
-                    </span>
-                  </td>
-                </tr>
-                <tr v-if="unpaidList.length === 0">
-                  <td colspan="3" class="empty-state">
-                    <div class="empty-box">
-                      <span>🎉</span>
-                      <p>Semua pelanggan sudah lunas bulan ini!</p>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
+      <div class="dashboard-main-grid">
 
-        <div class="card">
-          <h4 class="table-title mb-16">Pembayaran Terbaru</h4>
-          <div class="activity-timeline" v-if="recentPayments.length">
-            <div v-for="item in recentPayments" :key="item.id" class="activity-item">
-              <div class="activity-dot"></div>
-              <div class="activity-info">
-                <p class="activity-text">
-                  <strong>{{ item.name || 'User' }}</strong> 
-                  bayar <span class="text-green">Rp {{ formatRupiah(item.amount) }}</span>
-                </p>
-                <small class="activity-time">{{ formatDate(item.created_at) }}</small>
+        <div class="dashboard-section">
+          <div class="dashboard-section__header">
+            <h4 class="dashboard-section__title">Perlu Ditagih</h4>
+            <span class="dashboard-section__count">{{ unpaidList.length }} pelanggan</span>
+          </div>
+
+          <div v-if="unpaidList.length" class="unpaid-list">
+            <div v-for="item in unpaidList" :key="item.id" class="unpaid-row">
+              <div class="unpaid-row__avatar">{{ initials(item.customer_name) }}</div>
+              <div class="unpaid-row__info">
+                <div class="unpaid-row__name">{{ item.customer_name }}</div>
+                <div class="unpaid-row__amount">
+                  Rp {{ formatRupiah(item.total_outstanding) }} tertunggak
+                  <template v-if="item.status === 'partial'"> (dari Rp {{ formatRupiah(item.amount) }})</template>
+                </div>
               </div>
+              <StatusBadge :variant="item.status === 'unpaid' ? 'unpaid' : 'partial'" />
+            </div>
+          </div>
+          <div v-else class="empty-box">
+            <span>🎉</span>
+            <p>Semua pelanggan sudah lunas bulan ini!</p>
+          </div>
+        </div>
+
+        <div class="dashboard-section">
+          <h4 class="dashboard-section__title mb-16">Aktivitas Terbaru</h4>
+          <div v-if="recentPayments.length" class="activity-list">
+            <div v-for="item in recentPayments" :key="item.id" class="activity-row">
+              <div class="activity-row__text">
+                <strong>{{ item.name || 'User' }}</strong>
+                bayar <span class="text-green">Rp {{ formatRupiah(item.amount) }}</span>
+              </div>
+              <div class="activity-row__time">{{ formatDate(item.created_at) }}</div>
             </div>
           </div>
           <div v-else class="empty-state-mini">
@@ -276,252 +123,139 @@ const handleGenerate = async () => {
 </template>
 
 <style scoped>
-/* .dashboard-container {
-  padding: 30px;
-  background: #f5f7fa;
-  min-height: 100vh;
-}
-
-.page-title {
-  font-size: 24px;
-  font-weight: 600;
-  margin-bottom: 25px;
-  color: #2c3e50;
-}
-
-.card-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 20px;
-  margin-bottom: 40px;
-}
-
-.card {
-  background: white;
-  padding: 20px;
-  border-radius: 14px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  transition: 0.2s ease;
-}
-
-.card:hover {
-  transform: translateY(-3px);
-}
-
-.card-label {
-  font-size: 13px;
-  color: #7f8c8d;
-  margin-bottom: 8px;
-}
-
-.card h2 {
-  font-size: 22px;
-  font-weight: 700;
-}
-
-.success h2 {
-  color: #27ae60;
-}
-
-.danger h2 {
-  color: #e74c3c;
-}
-
-.highlight h2 {
-  color: #2980b9;
-}
-
-.warning h2 {
-  color: #f39c12;
-}
-
-.table-wrapper {
-  background: white;
-  padding: 25px;
-  border-radius: 14px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-}
-
-.section-title {
-  margin-bottom: 15px;
-  font-size: 18px;
-  font-weight: 600;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-th {
-  text-align: left;
-  font-size: 13px;
-  padding: 12px;
-  background: #f0f2f5;
-  color: #555;
-}
-
-td {
-  padding: 12px;
-  border-bottom: 1px solid #eee;
-  font-size: 14px;
-}
-
-.badge {
-  padding: 5px 10px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.badge.danger {
-  background: #fdecea;
-  color: #e74c3c;
-}
-
-.empty {
-  padding: 20px;
-  text-align: center;
-  color: #888;
-}
-
-.mini-log {
-  margin-top: 30px;
-  background: white;
-  padding: 20px;
-  border-radius: 14px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-}
-
-.log-item {
-  padding: 10px 0;
-  border-bottom: 1px solid #eee;
-  font-size: 14px;
-}
-
-.log-item:last-child {
-  border-bottom: none;
-}
-
-.badge.warning {
-  background: #fff4e5;
-  color: #f39c12;
-}
-
-.small-info {
-  font-size: 12px;
-  color: #888;
-} */
-
- /* Layout & Spacing */
-/* --- Dashboard Layout --- */
 .dashboard-page { padding: 0; }
+
+.dashboard-greeting { margin-bottom: 20px; }
+.dashboard-greeting__hello { font-size: 15px; font-weight: 700; color: var(--color-text-primary); }
+.dashboard-greeting__date { font-size: 13px; color: var(--color-text-secondary); margin-top: 2px; }
 
 /* --- Stats Grid System --- */
 .stats-main-grid {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  gap: 20px;
+  gap: 14px;
 }
 
-.stats-status-grid {
+.stat-card {
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-card-border);
+  border-radius: var(--radius-card-lg);
+  padding: 20px;
+}
+
+.stat-card--dark {
+  background: var(--color-dark-surface);
+  border: none;
+}
+
+.stat-card__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.stat-card--dark .stat-card__label { color: var(--color-dark-surface-text); }
+
+.stat-card__value {
+  font-size: 26px;
+  font-weight: 800;
+  margin-top: 10px;
+  color: var(--color-text-primary);
+}
+
+.stat-card--dark .stat-card__value { color: #FFFFFF; }
+.stat-card__value--red { color: var(--color-red); }
+
+.stat-card__sublabel {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin-top: 4px;
+}
+
+/* --- Mini status grid --- */
+.mini-stats-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-}
-
-/* --- Card Customization --- */
-.stat-card {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  padding: 28px;
-}
-
-.stat-icon {
-  width: 56px;
-  height: 56px;
-  background: #F1F5F9;
-  border-radius: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 28px;
-}
-
-.status-card {
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-
-.status-content {
-  display: flex;
-  align-items: baseline;
   gap: 8px;
-  margin-top: 12px;
+  margin-top: 16px;
 }
 
-.status-content h2 { font-size: 32px; font-weight: 800; }
-.status-unit { font-size: 14px; color: var(--text-muted); font-weight: 600; }
+.mini-stat {
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-card-border);
+  border-radius: var(--radius-card);
+  padding: 12px;
+  text-align: center;
+}
 
-/* Border accents for Status Cards */
-.border-green { border-bottom: 4px solid var(--primary); }
-.border-red { border-bottom: 4px solid var(--danger); }
-.border-orange { border-bottom: 4px solid var(--warning); }
+.mini-stat__value { font-size: 18px; font-weight: 800; }
+.mini-stat__value--green { color: var(--color-green); }
+.mini-stat__value--orange { color: var(--color-orange-text); }
+.mini-stat__value--red { color: var(--color-red); }
+.mini-stat__label { font-size: 10px; color: var(--color-text-secondary); font-weight: 600; margin-top: 2px; }
 
-/* --- Table & Activity Grid --- */
+/* --- Main grid: Perlu Ditagih | Aktivitas Terbaru --- */
 .dashboard-main-grid {
   display: grid;
   grid-template-columns: 1.8fr 1fr;
-  gap: 24px;
-}
-
-.table-title { font-size: 16px; font-weight: 800; color: var(--text-main); }
-.card-header-table { padding: 20px 24px; border-bottom: 1px solid var(--border); }
-
-/* --- Status Badges (Refined) --- */
-.status-badge {
-  padding: 6px 14px;
-  border-radius: 100px;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.status-badge.unpaid { background: #FEE2E2; color: #DC2626; border: 1px solid #FECACA; }
-.status-badge.partial { background: #FFF7ED; color: #EA580C; border: 1px solid #FFEDD5; }
-
-/* --- Activity Timeline --- */
-.activity-timeline { padding-left: 8px; margin-top: 20px; }
-.activity-item {
-  display: flex;
   gap: 16px;
-  padding-bottom: 24px;
-  position: relative;
+  margin-top: 24px;
 }
 
-.activity-item:not(:last-child)::after {
-  content: "";
-  position: absolute;
-  left: 5px; top: 18px; bottom: 0;
-  width: 2px; background: var(--border);
+.dashboard-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
 }
 
-.activity-dot {
-  width: 12px; height: 12px;
-  background: var(--primary);
-  border: 3px solid #E5F6E7;
-  border-radius: 50%;
+.dashboard-section__title { font-size: 15px; font-weight: 800; color: var(--color-text-primary); }
+.dashboard-section__count { font-size: 12px; font-weight: 700; color: var(--color-green); }
+
+.unpaid-row {
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-card-border);
+  border-radius: var(--radius-card);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.unpaid-row__avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--color-chip-bg);
+  color: var(--color-text-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
   flex-shrink: 0;
-  z-index: 2;
 }
 
-.activity-info { margin-top: -2px; }
-.activity-text { font-size: 14px; line-height: 1.4; }
-.activity-time { color: var(--text-muted); font-size: 12px; }
+.unpaid-row__info { flex: 1; min-width: 0; }
+.unpaid-row__name { font-size: 14px; font-weight: 700; color: var(--color-text-primary); }
+.unpaid-row__amount { font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
+
+.activity-list {
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-card-border);
+  border-radius: var(--radius-card);
+  padding: 4px 16px;
+}
+
+.activity-row {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.activity-row:last-child { border-bottom: none; }
+.activity-row__text { font-size: 13px; color: var(--color-text-primary); }
+.activity-row__time { font-size: 11px; color: var(--color-text-secondary); margin-top: 3px; }
 
 /* --- States (Loading & Empty) --- */
 .loading-card {
@@ -531,51 +265,53 @@ td {
   justify-content: center;
   padding: 100px;
   gap: 16px;
-  color: var(--text-muted);
+  color: var(--color-text-secondary);
 }
 
 .spinner {
   width: 40px; height: 40px;
-  border: 4px solid var(--border);
-  border-top-color: var(--primary);
+  border: 4px solid var(--color-card-border);
+  border-top-color: var(--color-green);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
-.empty-box { text-align: center; padding: 40px; }
+.empty-box { text-align: center; padding: 40px; color: var(--color-text-secondary); }
 .empty-box span { font-size: 40px; display: block; margin-bottom: 12px; }
+.empty-state-mini { padding: 20px; text-align: center; color: var(--color-text-secondary); font-size: 13px; }
 
 /* --- Transitions --- */
-.animate-fade-in {
-  animation: fadeIn 0.5s ease-out;
-}
+.animate-fade-in { animation: fadeIn 0.5s ease-out; }
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
+.mb-16 { margin-bottom: 16px; }
+
 /* --- Responsive --- */
-@media (max-width: 1200px) {
-  .stats-main-grid { grid-template-columns: 1fr 1fr; }
-}
-
 @media (max-width: 1024px) {
-  .stats-main-grid, .stats-status-grid, .dashboard-main-grid {
-    grid-template-columns: 1fr;
-  }
+  .dashboard-main-grid { grid-template-columns: 1fr; }
 }
 
-.col-subtext { font-size: 12px; color: var(--text-muted); }
+@media (max-width: 768px) {
+  .stats-main-grid {
+    display: flex;
+    overflow-x: auto;
+    gap: 10px;
+    margin: 0 -16px;
+    padding: 0 16px 4px;
+  }
 
-.isp-light { border-left: 4px solid #6366f1; }
-.text-indigo { color: #6366f1; }
+  .stat-card {
+    flex: 0 0 auto;
+    min-width: 150px;
+    padding: 16px;
+  }
 
-.stat-sublabel {
-  font-size: 12px;
-  color: var(--text-muted);
-  margin-top: 4px;
+  .stat-card__value { font-size: 19px; margin-top: 8px; }
 }
 </style>
