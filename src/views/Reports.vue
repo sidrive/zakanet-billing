@@ -15,6 +15,8 @@ import {
 } from "chart.js"
 import { useReports } from "../composables/useReports"
 import StatusBadge from "@/components/StatusBadge.vue"
+import SearchInput from "@/components/SearchInput.vue"
+import FilterChips from "@/components/FilterChips.vue"
 
 ChartJS.register(
   CategoryScale, LinearScale, PointElement, LineElement,
@@ -26,6 +28,13 @@ const { loading, error, reportData, detailRows, selectedMonth, loadReports, setM
 const trendView       = ref("daily")
 const detailSearch    = ref("")
 const detailStatusFilter = ref("all")
+
+const detailFilterOptions = [
+  { key: "all", label: "Semua" },
+  { key: "paid", label: "Lunas" },
+  { key: "partial", label: "Partial" },
+  { key: "unpaid", label: "Belum Bayar" },
+]
 
 const CHART_COLORS = ["#059669", "#60C6FF", "#AFD3FF", "#EA580C", "#DC2626"]
 
@@ -295,156 +304,58 @@ const filteredDetailRows = computed(() => {
       <!-- ── Detail Transaksi ── -->
       <div class="card no-padding detail-section">
 
-        <!-- Section Header + Filters -->
+        <!-- Section Header -->
         <div class="card-header-table">
           <div>
             <h4 class="card-inner-title">Detail Transaksi</h4>
             <p class="card-inner-subtitle">Rincian tagihan &amp; pembayaran periode ini</p>
           </div>
-          <div class="filter-group">
-            <select v-model="detailStatusFilter" class="search-input select-filter">
-              <option value="all">Semua Status</option>
-              <option value="paid">Lunas</option>
-              <option value="partial">Partial</option>
-              <option value="unpaid">Belum Bayar</option>
-            </select>
-            <input
-              v-model="detailSearch"
-              type="text"
-              placeholder="Cari nama pelanggan..."
-              class="search-input"
-            />
-          </div>
         </div>
 
-        <!-- Desktop Table (hidden on mobile) -->
-        <div class="table-wrapper desktop-only">
-          <table class="data-table detail-table">
-            <thead>
-              <tr>
-                <th>Nama Pelanggan</th>
-                <th>Tgl Bayar</th>
-                <th>Metode</th>
-                <th class="text-center">Status</th>
-                <th class="text-right">Tagihan</th>
-                <th class="text-right">Dibayar</th>
-                <th class="text-right">Hutang</th>
-                <th class="text-right">Sisa Saldo</th>
-                <th>Keterangan</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="row in filteredDetailRows" :key="row.id">
-                <td>
-                  <div class="customer-info-cell">
-                    <div class="mini-avatar">{{ row.customer_name?.charAt(0) ?? "?" }}</div>
-                    <span class="col-name">{{ row.customer_name }}</span>
-                  </div>
-                </td>
-                <td>
-                  <span v-if="row.status === 'unpaid'" class="text-muted">-</span>
-                  <span v-else>{{ formatDate(row.paid_at) }}</span>
-                </td>
-                <td>
-                  <span v-if="row.status === 'unpaid'" class="text-muted">-</span>
-                  <span v-else-if="row.auto_subscribed" class="badge-method auto">Auto-Debit</span>
-                  <span v-else class="badge-method manual">Manual Cash</span>
-                </td>
-                <td class="text-center">
-                  <StatusBadge :variant="row.status" />
-                </td>
-                <td class="text-right text-bold">{{ formatRupiah(row.amount) }}</td>
-                <td class="text-right">
-                  <span :class="row.paid_amount > 0 ? 'text-green text-bold' : 'text-muted'">
-                    {{ formatRupiah(row.paid_amount) }}
-                  </span>
-                </td>
-                <td class="text-right">
-                  <span :class="row.outstanding > 0 ? 'text-danger text-bold' : 'text-muted'">
-                    {{ formatRupiah(row.outstanding) }}
-                  </span>
-                </td>
-                <td class="text-right">
-                  <span :class="row.balance > 0 ? 'text-green text-bold' : 'text-muted'">
-                    {{ formatRupiah(row.balance) }}
-                  </span>
-                </td>
-                <td><span class="note-text">{{ row.note }}</span></td>
-              </tr>
-              <tr v-if="filteredDetailRows.length === 0">
-                <td colspan="9" class="empty-state">
-                  <div class="empty-box"><p>Tidak ada data untuk periode ini</p></div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <div class="detail-toolbar">
+          <SearchInput v-model="detailSearch" placeholder="Cari nama pelanggan..." class="detail-toolbar__search" />
+          <FilterChips :options="detailFilterOptions" v-model="detailStatusFilter" />
         </div>
 
-        <!-- Mobile Card List (hidden on desktop) -->
-        <div class="detail-cards mobile-only">
-          <div v-for="row in filteredDetailRows" :key="row.id + '-card'" class="detail-card">
-
-            <!-- Card Header: name + badges -->
-            <div class="detail-card-header">
-              <div class="customer-info-cell">
-                <div class="mini-avatar">{{ row.customer_name?.charAt(0) ?? "?" }}</div>
-                <div>
-                  <div class="col-name">{{ row.customer_name }}</div>
-                  <div class="col-subtext">
-                    {{ row.status === 'unpaid' ? 'Belum Bayar' : formatDate(row.paid_at) }}
-                  </div>
+        <div class="detail-list">
+          <div v-for="row in filteredDetailRows" :key="row.id" class="detail-card">
+            <div class="detail-card__top">
+              <div class="detail-card__avatar">{{ row.customer_name?.charAt(0) ?? "?" }}</div>
+              <div class="detail-card__info">
+                <div class="detail-card__name">{{ row.customer_name }}</div>
+                <div class="detail-card__meta">
+                  <template v-if="row.status === 'unpaid'">Belum ada pembayaran</template>
+                  <template v-else>{{ formatDate(row.paid_at) }} · {{ row.auto_subscribed ? 'Auto-Debit' : 'Manual Cash' }}</template>
                 </div>
               </div>
-              <div class="badge-stack">
-                <StatusBadge :variant="row.status" />
-                <span
-                  v-if="row.status !== 'unpaid'"
-                  :class="['badge-method', row.auto_subscribed ? 'auto' : 'manual']"
-                >
-                  {{ row.auto_subscribed ? 'Auto-Debit' : 'Manual Cash' }}
-                </span>
+              <StatusBadge :variant="row.status" />
+            </div>
+
+            <div class="detail-card__grid">
+              <div>
+                <div class="detail-card__stat-label">Tagihan</div>
+                <div class="detail-card__stat-value">{{ formatRupiah(row.amount) }}</div>
+              </div>
+              <div>
+                <div class="detail-card__stat-label">Dibayar</div>
+                <div class="detail-card__stat-value" :class="row.paid_amount > 0 ? 'text-green' : 'text-muted'">{{ formatRupiah(row.paid_amount) }}</div>
+              </div>
+              <div>
+                <div class="detail-card__stat-label">Hutang</div>
+                <div class="detail-card__stat-value" :class="row.outstanding > 0 ? 'text-danger' : 'text-muted'">{{ formatRupiah(row.outstanding) }}</div>
+              </div>
+              <div>
+                <div class="detail-card__stat-label">Sisa Saldo</div>
+                <div class="detail-card__stat-value" :class="row.balance > 0 ? 'text-green' : 'text-muted'">{{ formatRupiah(row.balance) }}</div>
               </div>
             </div>
 
-            <!-- Card Body: 2-column grid of values -->
-            <div class="detail-card-body">
-              <div class="card-stat-item">
-                <span class="stat-label">Tagihan</span>
-                <span class="stat-value text-bold">{{ formatRupiah(row.amount) }}</span>
-              </div>
-              <div class="card-stat-item">
-                <span class="stat-label">Dibayar</span>
-                <span :class="['stat-value', row.paid_amount > 0 ? 'text-green text-bold' : 'text-muted']">
-                  {{ formatRupiah(row.paid_amount) }}
-                </span>
-              </div>
-              <div class="card-stat-item">
-                <span class="stat-label">Hutang</span>
-                <span :class="['stat-value', row.outstanding > 0 ? 'text-danger text-bold' : 'text-muted']">
-                  {{ formatRupiah(row.outstanding) }}
-                </span>
-              </div>
-              <div class="card-stat-item">
-                <span class="stat-label">Sisa Saldo</span>
-                <span :class="['stat-value', row.balance > 0 ? 'text-green text-bold' : 'text-muted']">
-                  {{ formatRupiah(row.balance) }}
-                </span>
-              </div>
-              <div v-if="row.note && row.note !== '-'" class="card-stat-item card-stat-full">
-                <span class="stat-label">Keterangan</span>
-                <span class="stat-value text-muted">{{ row.note }}</span>
-              </div>
-            </div>
-
+            <div v-if="row.note && row.note !== '-'" class="detail-card__note">{{ row.note }}</div>
           </div>
 
-          <!-- Mobile Empty State -->
-          <div v-if="filteredDetailRows.length === 0" class="mobile-empty">
-            Tidak ada data untuk periode ini
-          </div>
+          <p v-if="filteredDetailRows.length === 0" class="empty-state-text">Tidak ada transaksi yang cocok.</p>
         </div>
 
-        <!-- Table Footer -->
         <div v-if="filteredDetailRows.length > 0" class="table-footer">
           Menampilkan {{ filteredDetailRows.length }} dari {{ detailRows.length }} transaksi
         </div>
@@ -579,83 +490,61 @@ const filteredDetailRows = computed(() => {
 .card-inner-title   { font-size: 16px; font-weight: 700; color: var(--color-text-primary); }
 .card-inner-subtitle { font-size: 13px; color: var(--color-text-secondary); margin-top: 2px; }
 
-.filter-group { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-
-.search-input {
-  background: var(--color-surface); border: 1px solid var(--color-card-border);
-  padding: 8px 16px; border-radius: var(--radius-pill);
-  font-size: 13px; width: 200px;
+/* ── Detail Transaksi toolbar ── */
+.detail-toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 16px 24px 0;
+  flex-wrap: wrap;
 }
-.select-filter { width: auto !important; cursor: pointer; background-color: var(--color-card-bg); }
 
-/* ── Desktop Table ── */
-.detail-table th, .detail-table td { padding: 14px 16px; font-size: 13px; }
+.detail-toolbar__search { flex: 1; max-width: 280px; }
 
-.customer-info-cell { display: flex; align-items: center; gap: 10px; }
-.mini-avatar {
-  width: 30px; height: 30px; background: var(--color-green-tint); color: var(--color-green);
-  border-radius: 8px; display: flex; align-items: center; justify-content: center;
+/* ── Detail Transaksi card list ── */
+.detail-list { padding: 16px 24px; display: flex; flex-direction: column; gap: 10px; }
+
+.detail-card {
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-card-border);
+  border-radius: var(--radius-card);
+  padding: 16px;
+  box-shadow: var(--shadow-card);
+  transition: var(--transition-card);
+}
+
+.detail-card__top { display: flex; align-items: center; gap: 12px; }
+
+.detail-card__avatar {
+  width: 34px; height: 34px; border-radius: 10px;
+  background: var(--color-chip-bg); color: var(--color-text-tertiary);
+  display: flex; align-items: center; justify-content: center;
   font-weight: 700; font-size: 13px; flex-shrink: 0;
 }
-.col-name    { font-weight: 600; color: var(--color-text-primary); }
-.col-subtext { font-size: 12px; color: var(--color-text-secondary); }
 
-/* Method badges */
-.badge-method {
-  display: inline-block; padding: 3px 10px;
-  border-radius: var(--radius-pill); font-size: 11px; font-weight: 700;
+.detail-card__info { flex: 1; min-width: 0; }
+.detail-card__name { font-size: 14px; font-weight: 700; color: var(--color-text-primary); }
+.detail-card__meta { font-size: 11px; color: var(--color-text-secondary); margin-top: 2px; }
+
+.detail-card__grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-divider);
 }
-.badge-method.auto   { background: var(--color-green-tint); color: var(--color-green); }
-.badge-method.manual { background: var(--color-chip-bg); color: var(--color-text-tertiary); }
 
-.note-text { font-size: 12px; color: var(--color-text-secondary); max-width: 160px; display: block; }
+.detail-card__stat-label { font-size: 10px; color: var(--color-text-secondary); font-weight: 600; }
+.detail-card__stat-value { font-size: 12.5px; font-weight: 700; color: var(--color-text-primary); margin-top: 3px; }
+
+.detail-card__note { font-size: 11px; color: var(--color-text-secondary); margin-top: 10px; }
 
 /* Table footer */
 .table-footer {
   padding: 12px 24px; font-size: 12px; color: var(--color-text-secondary);
   border-top: 1px solid var(--color-card-border); background: var(--color-surface);
 }
-
-/* ── Mobile Cards ── */
-.detail-cards { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-
-.detail-card {
-  border: 1px solid var(--color-card-border); border-radius: var(--radius-card);
-  background: white; overflow: hidden;
-}
-
-.detail-card-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 16px; border-bottom: 1px solid var(--color-card-border);
-  background: var(--color-surface); gap: 12px;
-}
-
-.badge-stack { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; }
-
-.detail-card-body {
-  display: grid; grid-template-columns: 1fr 1fr;
-}
-
-.card-stat-item {
-  padding: 12px 16px; display: flex; flex-direction: column; gap: 3px;
-  border-bottom: 1px solid var(--color-card-border);
-}
-.card-stat-item:nth-child(odd):not(.card-stat-full) {
-  border-right: 1px solid var(--color-card-border);
-}
-.card-stat-full { grid-column: 1 / -1; }
-.card-stat-item:last-child { border-bottom: none; }
-
-.stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--color-text-secondary); font-weight: 600; }
-.stat-value { font-size: 13px; color: var(--color-text-primary); }
-
-.mobile-empty { padding: 40px 20px; text-align: center; color: var(--color-text-secondary); font-size: 14px; }
-
-/* ═══════════════════════════════════════════
-   VISIBILITY TOGGLE: DESKTOP / MOBILE
-════════════════════════════════════════════ */
-.desktop-only { display: block; }
-.mobile-only  { display: none; }
 
 /* ═══════════════════════════════════════════
    SHARED UTILITIES
@@ -682,8 +571,6 @@ const filteredDetailRows = computed(() => {
 @keyframes spin { to { transform: rotate(360deg); } }
 
 .error-card     { padding: 40px; text-align: center; color: var(--color-red); }
-.empty-state    { padding: 48px !important; text-align: center; color: var(--color-text-secondary); }
-.empty-box p    { font-size: 14px; }
 .empty-state-text { text-align: center; color: var(--color-text-secondary); font-size: 13px; padding: 20px 0; }
 
 /* ═══════════════════════════════════════════
@@ -699,10 +586,6 @@ const filteredDetailRows = computed(() => {
 
 /* Mobile: ≤ 767px — main breakpoint */
 @media (max-width: 767px) {
-  /* Visibility switch */
-  .desktop-only { display: none !important; }
-  .mobile-only  { display: block !important; }
-
   /* Filter bar: stack vertically */
   .reports-filters {
     flex-direction: column;
@@ -735,9 +618,10 @@ const filteredDetailRows = computed(() => {
     flex-direction: column; align-items: flex-start; gap: 12px;
     padding: 16px;
   }
-  .filter-group { flex-direction: column; align-items: stretch; width: 100%; gap: 8px; }
-  .search-input { width: 100% !important; }
-  .select-filter { width: 100% !important; }
+  .detail-toolbar { padding: 12px 16px 0; }
+  .detail-toolbar__search { max-width: none; flex-basis: 100%; }
+  .detail-list { padding: 12px 16px; }
+  .detail-card__grid { grid-template-columns: 1fr 1fr; }
 
   /* Table footer spacing */
   .table-footer { padding: 10px 16px; }
