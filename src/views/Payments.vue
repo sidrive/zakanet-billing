@@ -20,6 +20,16 @@ const payAmount = ref(0)
 const discountType = ref("nominal")
 const discountValue = ref(0)
 
+const discountAmount = computed(() => {
+  const val = Number(discountValue.value || 0)
+  if (val <= 0) return 0
+  if (discountType.value === "percent") {
+    const totalTagihan = unpaidInvoices.value.reduce((sum, inv) => sum + (inv.amount - inv.paid_amount), 0)
+    return Math.round(totalTagihan * val / 100)
+  }
+  return val
+})
+
 const preview = ref(null)
 const alreadyPaidThisMonth = ref(false)
 const saldoAmount = ref(0)
@@ -89,7 +99,9 @@ async function processPayment() {
 
   loading.value = true
 
-  let sisa = Number(payAmount.value)
+  // Diskon dihitung sebagai "pembayaran tambahan" yang mengurangi tagihan
+  // tanpa perlu uang tunai dari pelanggan.
+  let sisa = Number(payAmount.value) + preview.value.discount
 
   for (const inv of unpaidInvoices.value) {
     const sisaInvoice = inv.amount - inv.paid_amount
@@ -127,7 +139,7 @@ async function processPayment() {
     amount: Number(payAmount.value),
     discount_type: discountType.value,
     discount_value: Number(discountValue.value),
-    discount_amount: 0,
+    discount_amount: preview.value.discount,
     note: "Pembayaran invoice (partial enabled)"
   })
 
@@ -152,7 +164,8 @@ function simulatePayment() {
     return
   }
 
-  let sisa = Number(payAmount.value)
+  const discount = discountAmount.value
+  let sisa = Number(payAmount.value) + discount
 
   const closed = []
   const partial = []
@@ -177,6 +190,7 @@ function simulatePayment() {
   preview.value = {
     closed,
     partial,
+    discount,
     saldoAkhir:
       unpaidInvoices.value.length === closed.length
         ? (selectedCustomer.value.balance || 0) + sisa
@@ -267,14 +281,18 @@ const tunggakanLabel = computed(() => {
 })
 
 // Filter pelanggan berdasarkan input
+const hasSearchQuery = computed(() => searchQuery.value.trim().length > 0)
+
 const filteredCustomers = computed(() => {
-  if (!searchQuery.value) return customers.value;
+  if (!hasSearchQuery.value) return [];
   const query = searchQuery.value.toLowerCase();
   return customers.value.filter(c =>
     c.name.toLowerCase().includes(query) ||
     c.id.toString().includes(query)
   );
 });
+
+const hasNoResults = computed(() => hasSearchQuery.value && filteredCustomers.value.length === 0)
 </script>
 
 <template>
@@ -297,11 +315,12 @@ const filteredCustomers = computed(() => {
       </div>
 
       <div class="candidate-list">
+        <p v-if="!hasSearchQuery" class="empty-state">Mulai ketik nama pelanggan untuk mencari</p>
+        <p v-else-if="hasNoResults" class="empty-state">Tidak ditemukan pelanggan yang cocok</p>
         <div v-for="c in filteredCustomers" :key="c.id" class="candidate-row" @click="selectCustomer(c)">
           <div class="candidate-row__avatar">{{ c.name.charAt(0) }}</div>
           <div class="candidate-row__name">{{ c.name }}</div>
         </div>
-        <p v-if="filteredCustomers.length === 0" class="empty-state">Pelanggan tidak ditemukan.</p>
       </div>
     </div>
 
@@ -351,12 +370,12 @@ const filteredCustomers = computed(() => {
 
           <div class="form-group mt-12">
             <label class="input-label">Promo / Diskon (Opsional)</label>
-            <div class="amount-input">
-              <select v-model="discountType" class="amount-input__prefix amount-input__prefix--select">
-                <option value="nominal">Rp</option>
-                <option value="percent">%</option>
-              </select>
-              <input type="number" v-model="discountValue" placeholder="0" class="amount-input__field" />
+            <div class="discount-row">
+              <div class="discount-toggle">
+                <button type="button" :class="{ active: discountType === 'nominal' }" @click="discountType = 'nominal'">Rp</button>
+                <button type="button" :class="{ active: discountType === 'percent' }" @click="discountType = 'percent'">%</button>
+              </div>
+              <input type="number" v-model="discountValue" placeholder="0" class="discount-value-input" />
             </div>
           </div>
 
@@ -384,6 +403,10 @@ const filteredCustomers = computed(() => {
             <div v-for="i in preview.partial" :key="i.id" class="summary-list__row">
               <span>Cicil: {{ formatMonthId(i.month) }}</span>
               <span class="text-sm">Rp {{ i.will_pay.toLocaleString('id-ID') }}</span>
+            </div>
+            <div v-if="preview.discount > 0" class="summary-list__row">
+              <span>Diskon{{ discountType === 'percent' ? ` (${discountValue}%)` : '' }}</span>
+              <span class="text-green text-bold">- Rp {{ preview.discount.toLocaleString('id-ID') }}</span>
             </div>
           </div>
 
@@ -452,6 +475,7 @@ const filteredCustomers = computed(() => {
   font-size: 13px;
   font-family: inherit;
   outline: none;
+  transition: var(--transition-input);
 }
 
 .customer-picker__input:focus { border-color: var(--color-green); }
@@ -483,6 +507,8 @@ const filteredCustomers = computed(() => {
   gap: 12px;
   margin-bottom: 8px;
   cursor: pointer;
+  box-shadow: var(--shadow-card);
+  transition: var(--transition-card-clickable);
 }
 
 .candidate-row__avatar {
@@ -500,6 +526,11 @@ const filteredCustomers = computed(() => {
 }
 
 .candidate-row__name { font-size: 14px; font-weight: 600; color: var(--color-text-primary); }
+
+.candidate-row:hover {
+  transform: translateY(-1px);
+  border-color: var(--color-green-tint-border);
+}
 
 .empty-state { text-align: center; padding: 32px 20px; color: var(--color-text-secondary); font-size: 13px; }
 
@@ -593,6 +624,7 @@ const filteredCustomers = computed(() => {
   border: 1px solid var(--color-card-border);
   border-radius: 12px;
   overflow: hidden;
+  transition: var(--transition-input);
 }
 
 .amount-input__prefix {
@@ -606,7 +638,47 @@ const filteredCustomers = computed(() => {
   border-right: 1px solid var(--color-card-border);
 }
 
-.amount-input__prefix--select { border: none; cursor: pointer; }
+/* ── Diskon segmented toggle ── */
+.discount-row { display: flex; gap: 8px; }
+
+.discount-toggle {
+  display: flex;
+  border: 1px solid var(--color-card-border);
+  border-radius: 12px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.discount-toggle button {
+  padding: 0 16px;
+  height: 38px;
+  border: none;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  background: #FFFFFF;
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  transition: background .15s, color .15s;
+}
+
+.discount-toggle button:last-child { border-left: 1px solid var(--color-card-border); }
+.discount-toggle button.active { background: var(--color-dark-surface); color: #FFFFFF; }
+
+.discount-value-input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--color-card-border);
+  border-radius: 12px;
+  padding: 0 14px;
+  font-size: 14px;
+  font-weight: 700;
+  outline: none;
+  font-family: inherit;
+  transition: var(--transition-input);
+}
+
+.discount-value-input:focus { border-color: var(--color-green); }
 
 .amount-input__field {
   flex: 1;

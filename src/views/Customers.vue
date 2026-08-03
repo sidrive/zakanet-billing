@@ -36,10 +36,11 @@ const isLoadingList = ref(false);
 // ── Edit Sheet ────────────────────────────────────────────
 const isEditOpen   = ref(false)
 const isUpdating   = ref(false)
+const isEditDatePickerOpen = ref(false)
 const editForm     = ref({
   id: "", name: "", phone: "", address: "",
   product_id: "", product_name: "", custom_price: "", is_active: true,
-  join_date: ""
+  join_date: "", balance: 0
 })
 
 function openEdit(customer) {
@@ -57,8 +58,10 @@ function openEdit(customer) {
     product_name: customer.product_name ?? "",
     custom_price: customer.custom_price ?? "",
     is_active:    customer.is_active    ?? true,
-    join_date:    joinDateStr
+    join_date:    joinDateStr,
+    balance:      customer.balance      ?? 0
   }
+  isEditDatePickerOpen.value = false
   isEditOpen.value = true
 }
 
@@ -86,10 +89,23 @@ async function submitEdit() {
   }
 }
 
-const formatJoinDate = (ts) => {
+const MONTHS_SHORT_ID = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
+const MONTHS_FULL_ID = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
+
+const toDate = (ts) => {
   if (!ts) return null
   const d = ts.toDate ? ts.toDate() : new Date(ts)
-  return d.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })
+  return isNaN(d) ? null : d
+}
+
+const joinShort = (ts) => {
+  const d = toDate(ts)
+  return d ? `Bergabung ${MONTHS_SHORT_ID[d.getMonth()]} ${d.getFullYear()}` : "Pelanggan Lama"
+}
+
+const joinFull = (ts) => {
+  const d = toDate(ts)
+  return d ? `${d.getDate()} ${MONTHS_FULL_ID[d.getMonth()]} ${d.getFullYear()}` : ""
 }
 
 const filteredCustomers = computed(() => {
@@ -191,13 +207,13 @@ onMounted(() => {
             <div class="customer-card__avatar">{{ c.name.charAt(0) }}</div>
             <div class="customer-card__info">
               <div class="customer-card__name">{{ c.name }}</div>
-              <div class="customer-card__phone">{{ c.phone || 'No HP -' }}</div>
+              <div class="customer-card__phone">{{ c.phone || 'No HP -' }} · {{ joinShort(c.join_date) }}</div>
             </div>
             <StatusBadge :variant="c.is_active ? 'active' : 'inactive'" />
           </div>
           <div class="customer-card__footer">
-            <span>{{ c.product_name || 'Tanpa Paket' }}</span>
-            <span class="customer-card__price">Rp {{ c.custom_price.toLocaleString('id-ID') }}</span>
+            <span>{{ c.product_name || 'Tanpa Paket' }} · Rp {{ c.custom_price.toLocaleString('id-ID') }}</span>
+            <span v-if="c.balance > 0" class="customer-card__balance">Saldo Rp {{ c.balance.toLocaleString('id-ID') }}</span>
           </div>
         </div>
       </div>
@@ -245,6 +261,10 @@ onMounted(() => {
 
     <!-- ── Edit Pelanggan ── -->
     <SheetModal v-model="isEditOpen" :title="`Edit ${editForm.name}`" subtitle="Perubahan akan langsung tersimpan ke database">
+      <div v-if="editForm.balance > 0" class="saldo-info-row">
+        <span>Saldo Deposit</span>
+        <span class="saldo-info-row__value">Rp {{ editForm.balance.toLocaleString('id-ID') }}</span>
+      </div>
       <div class="sheet-form">
         <div class="form-group">
           <label class="input-label">Nama Lengkap</label>
@@ -271,7 +291,12 @@ onMounted(() => {
         </div>
         <div class="form-group">
           <label class="input-label">Tanggal Bergabung</label>
-          <input v-model="editForm.join_date" type="date" class="main-input" />
+          <div v-if="!isEditDatePickerOpen" class="join-date-display">
+            <span v-if="editForm.join_date">Bergabung sejak {{ joinFull(editForm.join_date) }}</span>
+            <span v-else>Tanggal bergabung belum diatur</span>
+            <button type="button" class="link-btn" @click="isEditDatePickerOpen = true">Ubah tanggal</button>
+          </div>
+          <input v-else v-model="editForm.join_date" type="date" class="main-input main-input--focused" />
           <p class="input-hint">Mempengaruhi awal tagihan &amp; eligibilitas promo</p>
         </div>
         <div class="form-group">
@@ -358,6 +383,13 @@ onMounted(() => {
   border-radius: var(--radius-card);
   padding: 16px;
   cursor: pointer;
+  box-shadow: var(--shadow-card);
+  transition: var(--transition-card-clickable);
+}
+
+.customer-card:hover {
+  transform: translateY(-1px);
+  border-color: var(--color-green-tint-border);
 }
 
 .customer-card__top {
@@ -386,7 +418,9 @@ onMounted(() => {
 
 .customer-card__footer {
   display: flex;
+  align-items: center;
   justify-content: space-between;
+  gap: 8px;
   margin-top: 12px;
   padding-top: 12px;
   border-top: 1px solid var(--color-divider);
@@ -394,7 +428,15 @@ onMounted(() => {
   color: var(--color-text-secondary);
 }
 
-.customer-card__price { font-weight: 700; color: var(--color-text-primary); }
+.customer-card__balance {
+  flex-shrink: 0;
+  font-weight: 700;
+  color: var(--color-green);
+  background: var(--color-green-tint);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+}
 
 .empty-state {
   text-align: center;
@@ -423,6 +465,50 @@ onMounted(() => {
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ── Saldo Deposit info (edit sheet) ── */
+.saldo-info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--color-green-tint);
+  border: 1px solid var(--color-green-tint-border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-green-hover);
+}
+
+.saldo-info-row__value { font-size: 14px; font-weight: 800; }
+
+/* ── Tanggal Bergabung (edit-on-demand) ── */
+.join-date-display {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--color-surface);
+  border: 1px solid var(--color-card-border);
+  border-radius: 10px;
+  padding: 11px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.link-btn {
+  border: none;
+  background: none;
+  color: var(--color-green);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.main-input--focused { border-color: var(--color-green); }
+
 /* ── Sheet form ── */
 .sheet-form { display: flex; flex-direction: column; gap: 12px; }
 .form-group { display: flex; flex-direction: column; }
@@ -438,7 +524,10 @@ onMounted(() => {
   width: 100%;
   box-sizing: border-box;
   resize: none;
+  transition: var(--transition-input);
 }
+
+.main-input:focus { border-color: var(--color-green); }
 
 .input-hint { font-size: 11px; color: var(--color-text-secondary); margin-top: 5px; }
 
