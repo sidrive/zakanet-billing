@@ -141,6 +141,8 @@ const initials = (name) => (name || "?").charAt(0).toUpperCase()
   border: 1px solid var(--color-card-border);
   border-radius: var(--radius-card-lg);
   padding: 20px;
+  box-shadow: var(--shadow-card);
+  transition: var(--transition-card);
 }
 
 .stat-card--dark {
@@ -186,6 +188,8 @@ const initials = (name) => (name || "?").charAt(0).toUpperCase()
   border-radius: var(--radius-card);
   padding: 12px;
   text-align: center;
+  box-shadow: var(--shadow-card);
+  transition: var(--transition-card);
 }
 
 .mini-stat__value { font-size: 18px; font-weight: 800; }
@@ -221,6 +225,8 @@ const initials = (name) => (name || "?").charAt(0).toUpperCase()
   align-items: center;
   gap: 12px;
   margin-bottom: 8px;
+  box-shadow: var(--shadow-card);
+  transition: var(--transition-card);
 }
 
 .unpaid-row__avatar {
@@ -246,6 +252,8 @@ const initials = (name) => (name || "?").charAt(0).toUpperCase()
   border: 1px solid var(--color-card-border);
   border-radius: var(--radius-card);
   padding: 4px 16px;
+  box-shadow: var(--shadow-card);
+  transition: var(--transition-card);
 }
 
 .activity-row {

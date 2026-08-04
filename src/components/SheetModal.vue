@@ -1,4 +1,6 @@
 <script setup>
+import { watch } from "vue"
+
 const props = defineProps({
   modelValue: { type: Boolean, required: true },
   title: { type: String, default: "" },
@@ -10,6 +12,10 @@ const emit = defineEmits(["update:modelValue"])
 function close() {
   emit("update:modelValue", false)
 }
+
+watch(() => props.modelValue, (isOpen) => {
+  document.body.style.overflow = isOpen ? "hidden" : ""
+}, { immediate: true })
 </script>
 
 <template>

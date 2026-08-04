@@ -132,6 +132,8 @@ onMounted(loadProducts)
   border: 1px solid var(--color-card-border);
   border-radius: var(--radius-card);
   padding: 18px;
+  box-shadow: var(--shadow-card);
+  transition: var(--transition-card);
 }
 
 .product-card__icon {
