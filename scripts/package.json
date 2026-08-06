@@ -1,0 +1,8 @@
+{
+  "name": "zakanet-billing-admin-scripts",
+  "private": true,
+  "description": "One-off admin utilities. Not deployed — run locally with `node scripts/<file>.js`.",
+  "dependencies": {
+    "bcryptjs": "^3.0.3"
+  }
+}
