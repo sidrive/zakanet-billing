@@ -21,6 +21,7 @@ const phone = ref("")
 const address = ref("")
 const productId = ref("")
 const price = ref("")
+const password = ref("")
 const searchQuery = ref("")
 const filterStatus = ref("all")
 
@@ -37,10 +38,11 @@ const isLoadingList = ref(false);
 const isEditOpen   = ref(false)
 const isUpdating   = ref(false)
 const isEditDatePickerOpen = ref(false)
+const isEditPasswordOpen   = ref(false)
 const editForm     = ref({
   id: "", name: "", phone: "", address: "",
   product_id: "", product_name: "", custom_price: "", is_active: true,
-  join_date: "", balance: 0
+  join_date: "", balance: 0, password: "", has_password: false
 })
 
 function openEdit(customer) {
@@ -59,9 +61,13 @@ function openEdit(customer) {
     custom_price: customer.custom_price ?? "",
     is_active:    customer.is_active    ?? true,
     join_date:    joinDateStr,
-    balance:      customer.balance      ?? 0
+    balance:      customer.balance      ?? 0,
+    password:     "",
+    has_password: !!customer.password_hash
   }
   isEditDatePickerOpen.value = false
+  // Password belum diatur → paksa terbuka supaya admin wajib mengisinya.
+  isEditPasswordOpen.value = !editForm.value.has_password
   isEditOpen.value = true
 }
 
@@ -77,6 +83,9 @@ watch(() => editForm.value.product_id, (val) => {
 async function submitEdit() {
   if (!editForm.value.name || !editForm.value.phone) {
     return alert("Nama dan No HP wajib diisi")
+  }
+  if (!editForm.value.has_password && !editForm.value.password) {
+    return alert("Password cek tagihan wajib diisi untuk pelanggan ini")
   }
   isUpdating.value = true
   try {
@@ -151,6 +160,9 @@ async function submitCustomer() {
   if (!name.value || !phone.value || !productId.value) {
     return alert("Nama, HP, dan paket wajib diisi")
   }
+  if (!password.value) {
+    return alert("Password cek tagihan wajib diisi")
+  }
 
   const product = products.value.find(p => p.id === productId.value)
   isSubmitting.value = true;
@@ -161,7 +173,8 @@ async function submitCustomer() {
     address: address.value,
     product_id: product.id,
     product_name: product.name,
-    custom_price: Number(price.value)
+    custom_price: Number(price.value),
+    password: password.value
   })
 
   // reset
@@ -170,6 +183,7 @@ async function submitCustomer() {
   address.value = ""
   productId.value = ""
   price.value = ""
+  password.value = ""
 
   isSubmitting.value = false;
   isAddOpen.value = false
@@ -247,6 +261,11 @@ onMounted(() => {
           <label class="input-label">Alamat Pemasangan</label>
           <textarea v-model="address" placeholder="Alamat lengkap lokasi pelanggan" class="main-input" rows="2"></textarea>
         </div>
+        <div class="form-group">
+          <label class="input-label">Password Cek Tagihan</label>
+          <input v-model="password" type="password" placeholder="Wajib diisi" class="main-input" />
+          <p class="input-hint">Dipakai pelanggan untuk cek tagihan sendiri lewat website</p>
+        </div>
         <button
           @click="submitCustomer"
           class="btn-green full-width"
@@ -298,6 +317,18 @@ onMounted(() => {
           </div>
           <input v-else v-model="editForm.join_date" type="date" class="main-input main-input--focused" />
           <p class="input-hint">Mempengaruhi awal tagihan &amp; eligibilitas promo</p>
+        </div>
+        <div class="form-group">
+          <label class="input-label">Password Cek Tagihan</label>
+          <div v-if="editForm.has_password && !isEditPasswordOpen" class="join-date-display">
+            <span>Password sudah diatur</span>
+            <button type="button" class="link-btn" @click="isEditPasswordOpen = true">Ubah password</button>
+          </div>
+          <template v-else>
+            <input v-model="editForm.password" type="password" placeholder="Wajib diisi" class="main-input main-input--focused" />
+            <p v-if="!editForm.has_password" class="input-hint input-hint--warning">Belum diatur — wajib diisi supaya pelanggan bisa cek tagihan</p>
+            <p v-else class="input-hint">Kosongkan &amp; simpan tanpa mengubah kalau tidak ingin mengganti password</p>
+          </template>
         </div>
         <div class="form-group">
           <label class="input-label">Status Pelanggan</label>
@@ -530,6 +561,7 @@ onMounted(() => {
 .main-input:focus { border-color: var(--color-green); }
 
 .input-hint { font-size: 11px; color: var(--color-text-secondary); margin-top: 5px; }
+.input-hint--warning { color: var(--color-red); font-weight: 600; }
 
 .full-width { width: 100%; }
 
