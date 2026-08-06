@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from "vue"
+import { ref, watch } from "vue"
 import { useRouter } from "vue-router"
 import { useAuth } from "@/composables/useAuth"
 
@@ -10,14 +10,22 @@ const isSigningIn = ref(false)
 const isChecking = ref(false)
 const errorMessage = ref("")
 
+// Redirect ke dashboard begitu status jadi "approved" — dipasang sebagai
+// watcher (bukan dicek sekali setelah await loginWithGoogle()) supaya tidak
+// kena race condition: pengecekan authorized_users ke Firestore baru selesai
+// SETELAH signInWithPopup resolve, jadi status bisa saja masih belum ter-update
+// tepat di titik itu. Watcher ini menangkap perubahan status kapan pun terjadi.
+watch(() => state.status, (status) => {
+  if (status === "approved") {
+    router.replace("/")
+  }
+}, { immediate: true })
+
 async function handleGoogleLogin() {
   errorMessage.value = ""
   isSigningIn.value = true
   try {
     await loginWithGoogle()
-    if (state.status === "approved") {
-      router.replace("/")
-    }
   } catch (err) {
     console.error("Gagal login:", err)
     errorMessage.value = "Gagal masuk dengan Google. Coba lagi."
@@ -30,9 +38,6 @@ async function handleRetry() {
   isChecking.value = true
   try {
     await refreshAuthorization()
-    if (state.status === "approved") {
-      router.replace("/")
-    }
   } finally {
     isChecking.value = false
   }
@@ -64,6 +69,12 @@ async function handleLogout() {
         <p v-if="errorMessage" class="login-card__error">{{ errorMessage }}</p>
       </template>
 
+      <!-- ── Sedang memeriksa status akun (jeda setelah login Google) ── -->
+      <template v-else-if="!state.status">
+        <div class="login-card__spinner"></div>
+        <p class="login-card__subtitle mt-12">Memeriksa akun...</p>
+      </template>
+
       <!-- ── Menunggu persetujuan ── -->
       <template v-else-if="state.status === 'pending'">
         <div class="login-card__avatar">
@@ -88,6 +99,12 @@ async function handleLogout() {
         <p class="login-card__subtitle">Gagal memeriksa status akun. Periksa koneksi internet kamu.</p>
         <button class="btn-green full-width" :disabled="isChecking" @click="handleRetry">Coba Lagi</button>
         <button class="btn-text mt-8" @click="handleLogout">Keluar</button>
+      </template>
+
+      <!-- ── Approved: sekilas sebelum watcher redirect ke dashboard ── -->
+      <template v-else>
+        <div class="login-card__spinner"></div>
+        <p class="login-card__subtitle mt-12">Berhasil masuk, mengarahkan...</p>
       </template>
     </div>
   </div>
@@ -159,6 +176,18 @@ async function handleLogout() {
   margin-top: 12px;
 }
 
+.login-card__spinner {
+  width: 32px;
+  height: 32px;
+  margin: 8px auto 0;
+  border: 3px solid var(--color-card-border);
+  border-top-color: var(--color-green);
+  border-radius: 50%;
+  animation: login-spin 0.8s linear infinite;
+}
+
+@keyframes login-spin { to { transform: rotate(360deg); } }
+
 .btn-google {
   width: 100%;
   display: flex;
@@ -205,4 +234,5 @@ async function handleLogout() {
 
 .full-width { width: 100%; }
 .mt-8 { margin-top: 8px; }
+.mt-12 { margin-top: 12px; }
 </style>
