@@ -142,10 +142,28 @@ async function run(db, { dryRun = false, outDir = path.join(__dirname, "output")
 async function main() {
   const { dryRun, serviceAccount } = parseArgs(process.argv.slice(2))
 
-  initializeApp({
+  const app = initializeApp({
     credential: serviceAccount ? cert(require(path.resolve(serviceAccount))) : applicationDefault(),
   })
   const db = getFirestore()
+
+  // Diagnostics — print BEFORE reading customers, so a "0 pelanggan" result is easy to root-cause
+  // (wrong service account / wrong project / typo'd collection name are the usual suspects).
+  console.log(`Terhubung ke project Firebase: ${app.options.projectId ?? "(tidak terdeteksi)"}`)
+  try {
+    const rootCollections = await db.listCollections()
+    console.log(
+      `Collection yang terlihat di project ini: ${rootCollections.map((c) => c.id).join(", ") || "(kosong — project/database ini tidak punya data sama sekali)"}`,
+    )
+    if (!rootCollections.some((c) => c.id === "customers")) {
+      console.warn(
+        '⚠️  Tidak ada collection bernama "customers" di project ini — cek apakah service account key ini benar dari project zakanet-billing (bukan project lain), dan bukan dari Firestore database bernama selain "(default)".',
+      )
+    }
+  } catch (err) {
+    console.warn("⚠️  Tidak bisa list collections (lanjut coba baca customers langsung):", err.message)
+  }
+  console.log()
 
   await run(db, { dryRun })
 }
