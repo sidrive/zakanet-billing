@@ -13,18 +13,55 @@ mengubah `firestore.rules` sama sekali untuk fitur ini.
 cek tagihan mandiri. Field ini **tidak** ada di skema saat ini — ditambahkan khusus untuk fitur
 publik ini.
 
-- **Jangan simpan password plaintext.** Generate hash-nya dulu:
-  ```bash
-  cd scripts && npm install   # sekali saja
-  node hash-password.js "kata sandi pelanggan"
-  ```
-  Lalu paste output-nya (string panjang berawalan `$2...`) ke field `password_hash` pelanggan
-  yang bersangkutan di Firestore Console.
 - Pelanggan yang belum punya `password_hash` akan selalu gagal verifikasi (function
   memperlakukannya seperti kredensial salah, bukan error — supaya tidak membocorkan siapa saja
   yang sudah/belum di-setup).
-- Pertimbangkan menambahkan alur "atur kata sandi" di aplikasi admin ini sendiri (generate
-  password acak per pelanggan baru, kirim via WhatsApp) — di luar scope perubahan ini.
+- **Jangan pernah simpan password plaintext** — field ini harus selalu berisi hash bcrypt.
+
+### Cara mengisi — banyak pelanggan sekaligus (`scripts/generate-passwords.js`)
+
+Untuk mengisi seluruh basis pelanggan yang sudah ada sekaligus, tanpa isi manual satu-satu:
+
+```bash
+cd scripts && npm install   # sekali saja
+
+# Preview dulu — tidak menulis apa pun, hanya menghitung berapa pelanggan yang eligible:
+node generate-passwords.js --service-account=/path/to/serviceAccountKey.json --dry-run
+
+# Eksekusi:
+node generate-passwords.js --service-account=/path/to/serviceAccountKey.json
+```
+
+- Ambil `serviceAccountKey.json` dari Firebase Console → Project Settings → Service Accounts →
+  Generate new private key. **Jangan pernah commit file ini** (sudah di-gitignore lewat pola
+  `*serviceAccount*.json`, tapi tetap hati-hati).
+- **Idempotent** — hanya menyentuh pelanggan yang belum punya `password_hash`. Aman dijalankan
+  ulang; tidak akan menimpa password yang sudah pernah di-set (baik lewat script ini maupun lewat
+  `hash-password.js` manual).
+- Password digenerate acak (8 karakter, huruf+angka, karakter ambigu seperti `0/O/1/l/I` sengaja
+  dihindari), lalu di-hash sebelum ditulis ke Firestore.
+- Karena bcrypt tidak bisa dibalik, plaintext-nya **hanya ada sekali** — tersimpan di
+  `scripts/output/passwords-<timestamp>.csv` (git-ignored). **Segera distribusikan satu-per-satu
+  ke tiap pelanggan (mis. lewat WhatsApp) lalu hapus file itu.** Jangan bagikan CSV-nya sekaligus
+  ke siapa pun di luar admin.
+
+### Cara mengisi — satu pelanggan (`scripts/hash-password.js`)
+
+Untuk pelanggan baru atau reset password satu-satu (misalnya pelanggan lupa password):
+
+```bash
+cd scripts && npm install   # sekali saja (kalau belum)
+node hash-password.js "kata sandi pelanggan"
+```
+
+Lalu paste output-nya (string panjang berawalan `$2...`) ke field `password_hash` pelanggan yang
+bersangkutan di Firestore Console.
+
+### Ke depan
+
+Pertimbangkan menambahkan alur "atur/reset kata sandi" langsung di aplikasi admin ini (generate
+password acak untuk pelanggan baru saat didaftarkan, kirim via WhatsApp otomatis) — di luar scope
+perubahan ini, tapi kedua script di atas bisa jadi referensi logikanya.
 
 ## Kontrak API
 
