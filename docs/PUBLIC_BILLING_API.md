@@ -1,39 +1,61 @@
 # Public Billing API — untuk landing page "Cek Tagihan"
 
-Cloud Function `checkBilling` (di `functions/index.js`) adalah satu-satunya jalur baca publik ke
-data billing. Ditulis supaya landing page (`sidrive/landingpage-zknet-frontend`) bisa mengecek
-status tagihan pelanggan **tanpa** pernah diberi akses langsung ke Firestore — `firestore.rules`
-tetap seperti semula (hanya `isApproved()` admin yang bisa baca `customers`/`invoices` langsung).
-Function ini jalan dengan Admin SDK, yang selalu bypass Security Rules by design, jadi tidak perlu
-mengubah `firestore.rules` sama sekali untuk fitur ini.
+> **⚠️ Status implementasi (terbaru)**: endpoint yang **benar-benar dipakai production** adalah
+> server Node/Express self-hosted di `sidrive/landingpage-zknet-frontend`'s `server/` folder
+> (jalan di STB Armbian milik ISP, bukan Firebase Cloud Functions — lihat repo itu untuk kode &
+> panduan deploy lengkap, `server/README.md`). Kode `functions/` di repo **ini**
+> (`zakanet-billing`) adalah versi Cloud Function dari fitur yang sama — ditulis lebih dulu,
+> lengkap dan valid, tapi **tidak di-deploy** (Cloud Functions generasi ini wajib plan Firebase
+> Blaze, sementara server self-hosted tidak). Disimpan di sini sebagai referensi/fallback kalau
+> suatu saat mau pindah balik ke Cloud Functions — jangan bingung kalau ada dua implementasi:
+> keduanya **logic-nya identik** (server/ di repo landing page adalah port apa adanya dari
+> `functions/` di repo ini), yang beda hanya tempat jalannya.
+>
+> Kontrak API, rate limiting, dan aturan "field apa yang boleh/tidak boleh direspons" di bawah ini
+> **berlaku sama** untuk kedua implementasi — dokumen ini tetap jadi sumber kebenaran kontraknya.
 
-## ⚠️ Yang harus dikerjakan sebelum fitur ini bisa dipakai
+Fitur ini adalah satu-satunya jalur baca publik ke data billing. Ditulis supaya landing page
+(`sidrive/landingpage-zknet-frontend`) bisa mengecek status tagihan pelanggan **tanpa** pernah
+diberi akses langsung ke Firestore — `firestore.rules` tetap seperti semula (hanya
+`isApproved()` admin yang bisa baca `customers`/`invoices` langsung). Baik versi Cloud Function
+maupun versi self-hosted sama-sama jalan dengan Firebase Admin SDK, yang selalu bypass Security
+Rules by design, jadi tidak perlu mengubah `firestore.rules` sama sekali untuk fitur ini.
 
-**Tambahkan field `password_hash` (string) ke setiap dokumen `customers/{id}`** yang perlu bisa
-cek tagihan mandiri. Field ini **tidak** ada di skema saat ini — ditambahkan khusus untuk fitur
-publik ini.
+## Cara isi `password_hash` pelanggan
 
-- **Jangan simpan password plaintext.** Generate hash-nya dulu:
+**Setiap dokumen `customers/{id}` butuh field `password_hash` (string, bcrypt hash)** supaya
+pelanggan itu bisa cek tagihan mandiri lewat fitur ini.
+
+- **Cara resmi (dipakai sekarang)**: isi lewat field **"Password Cek Tagihan"** di form Edit
+  Pelanggan pada aplikasi admin ini (`src/views/Customers.vue`) — wajib diisi untuk pelanggan
+  baru, dan otomatis diminta saat admin membuka form edit pelanggan lama yang belum punya
+  password. Hash bcrypt-nya dibuat otomatis oleh app (`src/services/customerService.js`),
+  admin tidak perlu urus hash secara manual.
+- **Cara manual (fallback)**: `scripts/hash-password.js` masih ada dan tetap valid kalau suatu
+  saat perlu isi/reset password langsung lewat Firestore Console tanpa lewat UI:
   ```bash
   cd scripts && npm install   # sekali saja
   node hash-password.js "kata sandi pelanggan"
   ```
   Lalu paste output-nya (string panjang berawalan `$2...`) ke field `password_hash` pelanggan
   yang bersangkutan di Firestore Console.
-- Pelanggan yang belum punya `password_hash` akan selalu gagal verifikasi (function
+- Pelanggan yang belum punya `password_hash` akan selalu gagal verifikasi (endpoint
   memperlakukannya seperti kredensial salah, bukan error — supaya tidak membocorkan siapa saja
   yang sudah/belum di-setup).
-- Pertimbangkan menambahkan alur "atur kata sandi" di aplikasi admin ini sendiri (generate
-  password acak per pelanggan baru, kirim via WhatsApp) — di luar scope perubahan ini.
 
 ## Kontrak API
 
 ```
-POST https://asia-southeast1-zakanet-billing.cloudfunctions.net/checkBilling
+POST <VITE_BILLING_API_URL>   # mis. https://check-tagihan-api.zknet.my.id/check-billing
 Content-Type: application/json
 
 { "name": "Budi Santoso", "password": "..." }
 ```
+
+(URL di atas dikonfigurasi di sisi landing page lewat env var `VITE_BILLING_API_URL` — lihat
+`sidrive/landingpage-zknet-frontend`'s README. Path/nama endpoint boleh beda antara versi
+self-hosted [`/check-billing`] dan versi Cloud Function [`/checkBilling`]; yang penting body
+request & response-nya ikuti kontrak di bawah ini.)
 
 Respons sukses (200):
 ```jsonc
@@ -76,14 +98,19 @@ signifikan.
 
 ## CORS
 
-`functions/lib/cors.js` berisi daftar origin yang diizinkan. **Update `ALLOWED_ORIGINS` dengan
+Ada di `lib/cors.js` (baik versi `functions/` di sini maupun versi `server/` di repo landing
+page — isinya sama). Berisi daftar origin yang diizinkan. **Update `ALLOWED_ORIGINS` dengan
 domain produksi landing page yang sebenarnya sebelum/saat deploy** — saat ini masih placeholder
 (`https://zakainternet.id`) + port dev lokal Vite.
 
 ## Deploy
 
-Dijalankan manual oleh admin yang punya akses ke project Firebase `zakanet-billing` (di luar
-mandat sesi yang membuat perubahan ini):
+**Yang benar-benar dipakai sekarang**: self-hosted di STB Armbian milik ISP. Lihat
+`sidrive/landingpage-zknet-frontend`'s `server/README.md` untuk langkah lengkap (generate
+service account key, systemd, reverse proxy HTTPS, sambungkan `VITE_BILLING_API_URL`).
+
+**Alternatif (kalau suatu saat mau pindah ke Cloud Functions)** — kode di `functions/` folder ini
+sudah siap deploy, tinggal (butuh project Firebase di plan Blaze):
 
 ```bash
 npm install --prefix functions
@@ -91,5 +118,7 @@ firebase login
 firebase deploy --only functions
 ```
 
-Setelah deploy, catat URL function yang tercetak (`https://asia-southeast1-zakanet-billing.cloudfunctions.net/checkBilling`)
-dan set sebagai `VITE_BILLING_API_URL` di environment landing page.
+Setelah deploy, catat URL function yang tercetak (formatnya
+`https://asia-southeast1-zakanet-billing.cloudfunctions.net/checkBilling`) dan set sebagai
+`VITE_BILLING_API_URL` di environment landing page. Kalau pindah ke opsi ini, matikan server
+self-hosted-nya — jangan jalankan dua-duanya sekaligus sebagai sumber kebenaran.
