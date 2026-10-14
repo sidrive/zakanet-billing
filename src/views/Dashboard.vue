@@ -53,9 +53,12 @@ const initials = (name) => (name || "?").charAt(0).toUpperCase()
           <h2 class="stat-card__value stat-card__value--red">Rp {{ formatRupiah(summary.totalOutstandingAll) }}</h2>
         </div>
         <div class="stat-card">
-          <p class="stat-card__label">Biaya ISP (50%)</p>
+          <p class="stat-card__label">Pengeluaran Riil (ISP)</p>
           <h2 class="stat-card__value">Rp {{ formatRupiah(summary.ispCost) }}</h2>
-          <p class="stat-card__sublabel">Dari {{ summary.totalInvoice }} tagihan aktif</p>
+          <p class="stat-card__sublabel">
+            <template v-if="summary.isRealExpense">Dari modul pengeluaran bulan ini</template>
+            <template v-else>Estimasi 50% (belum ada data pengeluaran)</template>
+          </p>
         </div>
       </div>
 

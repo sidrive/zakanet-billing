@@ -19,7 +19,6 @@ export function useDashboard() {
 
     clientsSnap.forEach(doc => {
       const clientData = doc.data()
-
       clientMap[doc.id] = clientData.name
     })
 
@@ -77,6 +76,21 @@ export function useDashboard() {
       }
     })
 
+    // 3️⃣ Ambil total pengeluaran (expenses) bulan ini untuk menggantikan taksiran 50% ispCost
+    // Format month: "YYYY-MM"
+    const expensesSnap = await getDocs(collection(db, "expenses"))
+    let totalExpensesMonth = 0
+    expensesSnap.forEach(doc => {
+      const d = doc.data()
+      const date = d.date?.toDate ? d.date.toDate() : (d.date ? new Date(d.date) : null)
+      if (date && !isNaN(date)) {
+        const itemMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+        if (itemMonth === month) {
+          totalExpensesMonth += Number(d.amount) || 0
+        }
+      }
+    })
+
     // Query total piutang semua bulan
     const unpaidAllQuery = query(
       collection(db, "invoices"),
@@ -105,14 +119,14 @@ export function useDashboard() {
 
     debtList = debtList.map(item => {
       const totalCustomerDebt = debtMap[item.customer_id]
-  
+
       if (totalCustomerDebt !== undefined) {
         return {
           ...item,
           total_outstanding: totalCustomerDebt
         }
       }
-  
+
       return item
     })
 
@@ -145,7 +159,8 @@ export function useDashboard() {
       totalOutstandingMonth,
       totalOutstandingAll,
       totalBillableAmount,
-      ispCost: Math.round(totalBillableAmount / 2)
+      ispCost: totalExpensesMonth > 0 ? totalExpensesMonth : Math.round(totalBillableAmount / 2),
+      isRealExpense: totalExpensesMonth > 0
     }
 
     unpaidList.value = debtList
@@ -155,7 +170,7 @@ export function useDashboard() {
   const ensureMonthlyInvoices = async (month) => {
     // 1️⃣ Ambil semua customer
     const customerSnap = await getDocs(collection(db, "customers"))
-    
+
     // 2️⃣ Ambil semua invoice bulan ini
     const invoiceSnap = await getDocs(
       query(
@@ -163,13 +178,13 @@ export function useDashboard() {
         where("month", "==", month)
       )
     )
-  
+
     // Buat set customer_id yang sudah punya invoice
     const existingCustomerIds = new Set()
     invoiceSnap.forEach(doc => {
       existingCustomerIds.add(doc.data().customer_id)
     })
-  
+
     for (const docSnap of customerSnap.docs) {
       const customer = docSnap.data()
       const customerId = docSnap.id
