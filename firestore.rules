@@ -34,6 +34,7 @@ service cloud.firestore {
     match /expenses/{id}       { allow read, write: if isApproved(); }
     match /revenues/{id}       { allow read, write: if isApproved(); }
     match /receivables/{id}    { allow read, write: if isApproved(); }
+    match /categories/{id}     { allow read, write: if isApproved(); }
     match /promo_settings/{id} { allow read, write: if isApproved(); }
     match /promo_winners/{id}  { allow read, write: if isApproved(); }
   }
