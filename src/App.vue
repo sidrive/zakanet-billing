@@ -1,7 +1,7 @@
 <script setup>
 import { watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
-import { PhHouse, PhPackage, PhTrendDown, PhUsers, PhWallet, PhChartBar, PhGift } from "@phosphor-icons/vue"
+import { PhHouse, PhPackage, PhTrendDown, PhTrendUp, PhUsers, PhWallet, PhChartBar, PhGift } from "@phosphor-icons/vue"
 import Toast from "@/components/Toast.vue"
 import { useAuth } from "@/composables/useAuth"
 
@@ -13,6 +13,7 @@ const navItems = [
   { to: "/", icon: PhHouse, label: "Dasbor", bnavLabel: "Beranda" },
   { to: "/products", icon: PhPackage, label: "Paket Layanan", bnavLabel: "Paket" },
   { to: "/expenses", icon: PhTrendDown, label: "Pengeluaran", bnavLabel: "Belanja" },
+  { to: "/revenues", icon: PhTrendUp, label: "Pendapatan Lain", bnavLabel: "Pendapatan" },
   { to: "/customers", icon: PhUsers, label: "Data Pelanggan", bnavLabel: "Pelanggan" },
   { to: "/payments", icon: PhWallet, label: "Pembayaran", bnavLabel: "Bayar" },
   { to: "/reports", icon: PhChartBar, label: "Laporan", bnavLabel: "Laporan" },
