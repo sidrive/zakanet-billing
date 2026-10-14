@@ -1,7 +1,8 @@
 <script setup>
 import { ref, onMounted, computed } from "vue"
-import { PhPlus, PhTrendUp, PhTrash, PhCalendar, PhWallet, PhUser } from "@phosphor-icons/vue"
+import { PhPlus, PhTrash, PhCalendar, PhWallet, PhUser, PhGear } from "@phosphor-icons/vue"
 import { getRevenues, addRevenue, updateRevenue, deleteRevenue } from "../services/revenueService"
+import { getCategories, addCategory, deleteCategory } from "../services/categoryService"
 import SearchInput from "@/components/SearchInput.vue"
 import FilterChips from "@/components/FilterChips.vue"
 import SheetModal from "@/components/SheetModal.vue"
@@ -10,30 +11,26 @@ import { useToast } from "@/composables/useToast"
 const { showToast } = useToast()
 
 const revenues = ref([])
+const categories = ref([])
 const searchQuery = ref("")
 const filterCategory = ref("all")
-
-const categories = [
-  "Penjualan Perangkat",
-  "Biaya Instalasi",
-  "Jasa Teknisi",
-  "Lainnya"
-]
 
 const filterOptions = computed(() => {
   return [
     { key: "all", label: "Semua" },
-    ...categories.map(c => ({ key: c, label: c }))
+    ...categories.value.map(c => ({ key: c.name, label: c.name }))
   ]
 })
 
 // Modal & Form State
 const isAddOpen = ref(false)
 const isEditOpen = ref(false)
+const isManageCategoryOpen = ref(false)
+const newCategoryName = ref("")
 
 const form = ref({
   id: "",
-  category: "Penjualan Perangkat",
+  category: "",
   description: "",
   amount: "",
   date: new Date().toISOString().slice(0, 10),
@@ -44,9 +41,17 @@ const form = ref({
 
 async function loadData() {
   try {
-    revenues.value = await getRevenues()
+    const [revRes, catRes] = await Promise.all([
+      getRevenues(),
+      getCategories("revenue")
+    ])
+    revenues.value = revRes
+    categories.value = catRes
+    if (catRes.length > 0 && !form.value.category) {
+      form.value.category = catRes[0].name
+    }
   } catch (err) {
-    console.error("Gagal memuat pendapatan lain:", err)
+    console.error("Gagal memuat pendapatan lain/kategori:", err)
   }
 }
 
@@ -63,7 +68,7 @@ const filteredRevenues = computed(() => {
 function openAdd() {
   form.value = {
     id: "",
-    category: "Penjualan Perangkat",
+    category: categories.value[0]?.name || "Penjualan Perangkat",
     description: "",
     amount: "",
     date: new Date().toISOString().slice(0, 10),
@@ -129,6 +134,29 @@ async function removeRevenue(id) {
   await loadData()
 }
 
+async function handleAddCategory() {
+  if (!newCategoryName.value.trim()) return alert("Nama kategori wajib diisi")
+  try {
+    await addCategory("revenue", newCategoryName.value)
+    newCategoryName.value = ""
+    categories.value = await getCategories("revenue")
+    showToast("Kategori baru ditambahkan")
+  } catch (err) {
+    alert(err.message || "Gagal menambah kategori")
+  }
+}
+
+async function handleRemoveCategory(id) {
+  if (!confirm("Hapus kategori ini?")) return
+  try {
+    await deleteCategory(id)
+    categories.value = await getCategories("revenue")
+    showToast("Kategori dihapus")
+  } catch (err) {
+    alert("Gagal menghapus kategori")
+  }
+}
+
 const MONTHS_FULL_ID = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
 
 function formatDate(ts) {
@@ -145,9 +173,14 @@ onMounted(loadData)
   <div class="revenue-page">
     <div class="toolbar">
       <SearchInput v-model="searchQuery" placeholder="Cari pendapatan lain..." />
-      <button class="btn-add" @click="openAdd">
-        <PhPlus size="14" weight="bold" /> Catat Pendapatan
-      </button>
+      <div class="toolbar-actions">
+        <button class="btn-manage" @click="isManageCategoryOpen = true" title="Kelola Kategori">
+          <PhGear size="16" /> Kelola Kategori
+        </button>
+        <button class="btn-add" @click="openAdd">
+          <PhPlus size="14" weight="bold" /> Catat Pendapatan
+        </button>
+      </div>
     </div>
 
     <div class="filter-wrapper">
@@ -179,7 +212,7 @@ onMounted(loadData)
         <div class="form-group">
           <label class="input-label">Kategori</label>
           <select v-model="form.category" class="main-input">
-            <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
+            <option v-for="cat in categories" :key="cat.id" :value="cat.name">{{ cat.name }}</option>
           </select>
         </div>
         <div class="form-group">
@@ -220,7 +253,7 @@ onMounted(loadData)
         <div class="form-group">
           <label class="input-label">Kategori</label>
           <select v-model="form.category" class="main-input">
-            <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
+            <option v-for="cat in categories" :key="cat.id" :value="cat.name">{{ cat.name }}</option>
           </select>
         </div>
         <div class="form-group">
@@ -257,6 +290,25 @@ onMounted(loadData)
         </div>
       </div>
     </SheetModal>
+
+    <!-- Modal Kelola Kategori -->
+    <SheetModal v-model="isManageCategoryOpen" title="Kelola Kategori Pendapatan Lain">
+      <div class="sheet-form">
+        <div class="payment-input-row">
+          <input v-model="newCategoryName" placeholder="Nama kategori baru..." class="main-input" />
+          <button @click="handleAddCategory" class="btn-green btn-pay">Tambah</button>
+        </div>
+
+        <div class="category-list">
+          <div v-for="cat in categories" :key="cat.id" class="category-row">
+            <span>{{ cat.name }}</span>
+            <button class="btn-icon-danger" @click="handleRemoveCategory(cat.id)" title="Hapus">
+              <PhTrash size="14" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </SheetModal>
   </div>
 </template>
 
@@ -265,7 +317,15 @@ onMounted(loadData)
   display: flex;
   gap: 10px;
   align-items: center;
+  justify-content: space-between;
   margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.toolbar-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 .filter-wrapper {
@@ -288,6 +348,56 @@ onMounted(loadData)
   font-size: 13px;
   cursor: pointer;
 }
+
+.btn-manage {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 11px 16px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-card-border);
+  background: var(--color-card-bg);
+  color: var(--color-text-primary);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+}
+.btn-manage:hover { background: var(--color-page-bg); }
+
+.category-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.category-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-card-border);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.btn-icon-danger {
+  background: #fee2e2;
+  border: none;
+  color: #dc2626;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.btn-icon-danger:hover { background: #fecaca; }
 
 .revenue-grid {
   display: grid;
@@ -444,6 +554,17 @@ onMounted(loadData)
 
 .btn-danger:hover {
   background: #fecaca;
+}
+
+.payment-input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-pay {
+  margin-top: 0 !important;
+  padding: 0 16px !important;
+  white-space: nowrap;
 }
 
 .full-width {
