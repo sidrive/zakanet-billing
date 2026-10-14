@@ -1,0 +1,444 @@
+<script setup>
+import { ref, onMounted, computed } from "vue"
+import { PhPlus, PhTrendDown, PhTrash, PhPencilSimple, PhCalendar, PhWallet, PhTag } from "@phosphor-icons/vue"
+import { getExpenses, addExpense, updateExpense, deleteExpense } from "../services/expenseService"
+import SearchInput from "@/components/SearchInput.vue"
+import FilterChips from "@/components/FilterChips.vue"
+import SheetModal from "@/components/SheetModal.vue"
+import StatusBadge from "@/components/StatusBadge.vue"
+import { useToast } from "@/composables/useToast"
+
+const { showToast } = useToast()
+
+const expenses = ref([])
+const searchQuery = ref("")
+const filterCategory = ref("all")
+
+const categories = [
+  "Operasional",
+  "Gaji",
+  "Sewa Tempat",
+  "Listrik & Internet",
+  "Perawatan Perangkat",
+  "Pembelian Perangkat",
+  "Lainnya"
+]
+
+const filterOptions = computed(() => {
+  return [
+    { key: "all", label: "Semua" },
+    ...categories.map(c => ({ key: c, label: c }))
+  ]
+})
+
+// Modal & Form State
+const isAddOpen = ref(false)
+const isEditOpen = ref(false)
+
+const form = ref({
+  id: "",
+  category: "Operasional",
+  description: "",
+  amount: "",
+  date: new Date().toISOString().slice(0, 10),
+  payment_method: "Tunai",
+  note: ""
+})
+
+async function loadData() {
+  try {
+    expenses.value = await getExpenses()
+  } catch (err) {
+    console.error("Gagal memuat pengeluaran:", err)
+  }
+}
+
+const filteredExpenses = computed(() => {
+  return expenses.value.filter(item => {
+    const matchSearch = item.description.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+                        item.category.toLowerCase().includes(searchQuery.value.toLowerCase())
+    const matchCategory = filterCategory.value === "all" || item.category === filterCategory.value
+    return matchSearch && matchCategory
+  })
+})
+
+function openAdd() {
+  form.value = {
+    id: "",
+    category: "Operasional",
+    description: "",
+    amount: "",
+    date: new Date().toISOString().slice(0, 10),
+    payment_method: "Tunai",
+    note: ""
+  }
+  isAddOpen.value = true
+}
+
+function openEdit(item) {
+  let dateStr = new Date().toISOString().slice(0, 10)
+  if (item.date) {
+    const d = item.date.toDate ? item.date.toDate() : new Date(item.date)
+    if (!isNaN(d)) dateStr = d.toISOString().slice(0, 10)
+  }
+  form.value = {
+    id: item.id,
+    category: item.category,
+    description: item.description,
+    amount: item.amount,
+    date: dateStr,
+    payment_method: item.payment_method || "Tunai",
+    note: item.note || ""
+  }
+  isEditOpen.value = true
+}
+
+async function submitAdd() {
+  if (!form.value.description || !form.value.amount || !form.value.date) {
+    return alert("Deskripsi, nominal, dan tanggal wajib diisi.")
+  }
+  if (Number(form.value.amount) <= 0) {
+    return alert("Nominal harus lebih besar dari 0.")
+  }
+
+  await addExpense(form.value)
+  isAddOpen.value = true // wait, close it
+  isAddOpen.value = false
+  showToast("Pengeluaran berhasil dicatat")
+  await loadData()
+}
+
+async function submitEdit() {
+  if (!form.value.description || !form.value.amount || !form.value.date) {
+    return alert("Deskripsi, nominal, dan tanggal wajib diisi.")
+  }
+  if (Number(form.value.amount) <= 0) {
+    return alert("Nominal harus lebih besar dari 0.")
+  }
+
+  await updateExpense(form.value.id, form.value)
+  isEditOpen.value = false
+  showToast("Perubahan pengeluaran disimpan")
+  await loadData()
+}
+
+async function removeExpense(id) {
+  if (!confirm("Yakin ingin menghapus catatan pengeluaran ini?")) return
+  await deleteExpense(id)
+  isEditOpen.value = false
+  showToast("Pengeluaran dihapus")
+  await loadData()
+}
+
+const MONTHS_FULL_ID = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
+
+function formatDate(ts) {
+  if (!ts) return ""
+  const d = ts.toDate ? ts.toDate() : new Date(ts)
+  if (isNaN(d)) return ""
+  return `${d.getDate()} ${MONTHS_FULL_ID[d.getMonth()]} ${d.getFullYear()}`
+}
+
+onMounted(loadData)
+</script>
+
+<template>
+  <div class="expense-page">
+    <div class="toolbar">
+      <SearchInput v-model="searchQuery" placeholder="Cari pengeluaran..." />
+      <button class="btn-add" @click="openAdd">
+        <PhPlus size="14" weight="bold" /> Catat Pengeluaran
+      </button>
+    </div>
+
+    <div class="filter-wrapper">
+      <FilterChips :options="filterOptions" v-model="filterCategory" />
+    </div>
+
+    <div class="expense-grid">
+      <div v-for="item in filteredExpenses" :key="item.id" class="expense-card" @click="openEdit(item)">
+        <div class="expense-card__header">
+          <span class="category-badge">{{ item.category }}</span>
+          <span class="expense-amount">Rp {{ Number(item.amount).toLocaleString('id-ID') }}</span>
+        </div>
+        <div class="expense-card__desc">{{ item.description }}</div>
+        <div class="expense-card__footer">
+          <span class="meta-item"><PhCalendar size="13" /> {{ formatDate(item.date) }}</span>
+          <span class="meta-item"><PhWallet size="13" /> {{ item.payment_method }}</span>
+        </div>
+      </div>
+    </div>
+
+    <p v-if="filteredExpenses.length === 0" class="empty-state">Belum ada catatan pengeluaran.</p>
+
+    <!-- Modal Tambah -->
+    <SheetModal v-model="isAddOpen" title="Catat Pengeluaran Baru">
+      <div class="sheet-form">
+        <div class="form-group">
+          <label class="input-label">Kategori</label>
+          <select v-model="form.category" class="main-input">
+            <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="input-label">Deskripsi / Keperluan</label>
+          <input v-model="form.description" placeholder="Contoh: Bayar listrik ruko" class="main-input" />
+        </div>
+        <div class="form-group">
+          <label class="input-label">Nominal (Rp)</label>
+          <input v-model="form.amount" type="number" placeholder="0" class="main-input" />
+        </div>
+        <div class="form-group">
+          <label class="input-label">Tanggal</label>
+          <input v-model="form.date" type="date" class="main-input" />
+        </div>
+        <div class="form-group">
+          <label class="input-label">Metode Pembayaran</label>
+          <select v-model="form.payment_method" class="main-input">
+            <option value="Tunai">Tunai</option>
+            <option value="Transfer">Transfer</option>
+            <option value="Lainnya">Lainnya</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="input-label">Catatan (Opsional)</label>
+          <textarea v-model="form.note" placeholder="Keterangan tambahan..." class="main-input textarea"></textarea>
+        </div>
+        <button @click="submitAdd" class="btn-green full-width">Simpan Pengeluaran</button>
+      </div>
+    </SheetModal>
+
+    <!-- Modal Edit -->
+    <SheetModal v-model="isEditOpen" title="Edit Pengeluaran">
+      <div class="sheet-form">
+        <div class="form-group">
+          <label class="input-label">Kategori</label>
+          <select v-model="form.category" class="main-input">
+            <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="input-label">Deskripsi / Keperluan</label>
+          <input v-model="form.description" placeholder="Contoh: Bayar listrik ruko" class="main-input" />
+        </div>
+        <div class="form-group">
+          <label class="input-label">Nominal (Rp)</label>
+          <input v-model="form.amount" type="number" placeholder="0" class="main-input" />
+        </div>
+        <div class="form-group">
+          <label class="input-label">Tanggal</label>
+          <input v-model="form.date" type="date" class="main-input" />
+        </div>
+        <div class="form-group">
+          <label class="input-label">Metode Pembayaran</label>
+          <select v-model="form.payment_method" class="main-input">
+            <option value="Tunai">Tunai</option>
+            <option value="Transfer">Transfer</option>
+            <option value="Lainnya">Lainnya</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="input-label">Catatan (Opsional)</label>
+          <textarea v-model="form.note" placeholder="Keterangan tambahan..." class="main-input textarea"></textarea>
+        </div>
+        <div class="button-row">
+          <button @click="submitEdit" class="btn-green flex-1">Simpan Perubahan</button>
+          <button @click="removeExpense(form.id)" class="btn-danger"><PhTrash size="16" /> Hapus</button>
+        </div>
+      </div>
+    </SheetModal>
+  </div>
+</template>
+
+<style scoped>
+.toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.filter-wrapper {
+  margin-bottom: 18px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.btn-add {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 20px;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: var(--color-dark-surface);
+  color: #FFFFFF;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.expense-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+@media (max-width: 900px) {
+  .expense-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.expense-card {
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-card-border);
+  border-radius: var(--radius-card);
+  padding: 16px;
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+  transition: var(--transition-card);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.expense-card:hover {
+  border-color: var(--color-green);
+  transform: translateY(-2px);
+}
+
+.expense-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.category-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-chip-bg);
+  color: var(--color-text-secondary);
+}
+
+.expense-amount {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-red, #dc2626);
+}
+
+.expense-card__desc {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.expense-card__footer {
+  display: flex;
+  gap: 14px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  border-top: 1px solid var(--color-card-border);
+  padding-top: 8px;
+  margin-top: 2px;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.sheet-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.main-input {
+  padding: 11px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--color-card-border);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--color-input-bg, #ffffff);
+  color: var(--color-text-primary);
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.input-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-tertiary);
+  margin-bottom: 4px;
+  display: block;
+}
+
+.btn-green {
+  margin-top: 6px;
+  padding: 13px;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: var(--color-green);
+  color: #FFFFFF;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.btn-green:hover {
+  background: var(--color-green-hover);
+}
+
+.btn-danger {
+  margin-top: 6px;
+  padding: 13px 20px;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: #fee2e2;
+  color: #dc2626;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+}
+
+.btn-danger:hover {
+  background: #fecaca;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.button-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.flex-1 {
+  flex: 1;
+}
+</style>

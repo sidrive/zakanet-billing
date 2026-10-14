@@ -1,22 +1,5 @@
 rules_version = '2';
 
-// ═══════════════════════════════════════════════════════════════
-// Zakanet Billing — Firestore Security Rules
-//
-// Cara deploy:
-//   firebase deploy --only firestore:rules
-// atau paste manual ke Firebase Console → Firestore Database → Rules.
-//
-// Alur otorisasi:
-// 1. User login pakai Google (Firebase Auth).
-// 2. App membuat dokumen authorized_users/{email} berstatus "pending"
-//    kalau belum pernah login sebelumnya (rules di bawah hanya mengizinkan
-//    `create`, bukan `update`, jadi user TIDAK BISA self-approve).
-// 3. Admin membuka Firestore Console, mengubah field `status` dokumen
-//    tersebut jadi "approved" secara manual.
-// 4. Setelah approved, user baru bisa baca/tulis data billing.
-// ═══════════════════════════════════════════════════════════════
-
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -34,10 +17,6 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/authorized_users/$(userEmail())).data.status == 'approved';
     }
 
-    // ── Daftar akun yang boleh akses ──
-    // Setiap user hanya boleh melihat & membuat dokumennya sendiri (status
-    // "pending"). Mengubah jadi "approved" hanya bisa lewat Firebase Console
-    // (Admin SDK, bukan lewat rules ini).
     match /authorized_users/{email} {
       allow get: if isSignedIn() && userEmail() == email;
       allow create: if isSignedIn()
@@ -47,11 +26,14 @@ service cloud.firestore {
       allow update, delete, list: if false;
     }
 
-    // ── Data billing — hanya user yang sudah "approved" ──
+    // ── Data billing & keuangan — hanya user yang sudah "approved" ──
     match /customers/{id}      { allow read, write: if isApproved(); }
     match /invoices/{id}       { allow read, write: if isApproved(); }
     match /payments/{id}       { allow read, write: if isApproved(); }
     match /products/{id}       { allow read, write: if isApproved(); }
+    match /expenses/{id}       { allow read, write: if isApproved(); }
+    match /revenues/{id}       { allow read, write: if isApproved(); }
+    match /receivables/{id}    { allow read, write: if isApproved(); }
     match /promo_settings/{id} { allow read, write: if isApproved(); }
     match /promo_winners/{id}  { allow read, write: if isApproved(); }
   }

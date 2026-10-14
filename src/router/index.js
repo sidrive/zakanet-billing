@@ -5,6 +5,7 @@ import Customers from "../views/Customers.vue"
 import Payments from "../views/Payments.vue"
 import Reports from "../views/Reports.vue"
 import Products from "../views/Products.vue"
+import Expenses from "../views/Expenses.vue"
 import Promo from "../views/Promo.vue"
 import Login from "../views/Login.vue"
 import { useAuth } from "../composables/useAuth"
@@ -13,6 +14,7 @@ const routes = [
   { path: "/login", component: Login, meta: { public: true, title: "Masuk" } },
   { path: "/", component: Dashboard, meta: { title: 'Dashboard'} },
   { path: "/products", component: Products, meta: { title: 'Paket Layanan'} },
+  { path: "/expenses", component: Expenses, meta: { title: 'Pengeluaran'} },
   { path: "/customers", component: Customers, meta: { title: 'Pelanggan'} },
   { path: "/payments", component: Payments, meta: { title: 'Pembayaran'} },
   { path: "/reports", component: Reports, meta: { title: 'Laporan'} },
