@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from "vue"
-import { PhPlus, PhHandCoins, PhTrash, PhCalendar, PhUser, PhCheckCircle, PhWarning } from "@phosphor-icons/vue"
-import { getReceivables, addReceivable, updateReceivable, recordPayment, deleteReceivable } from "../services/receivableService"
+import { PhPlus, PhTrash, PhCalendar, PhUser } from "@phosphor-icons/vue"
+import { getReceivables, addReceivable, updateReceivable, recordPayment, deleteReceivable, getReceivablePayments } from "../services/receivableService"
 import SearchInput from "@/components/SearchInput.vue"
 import FilterChips from "@/components/FilterChips.vue"
 import SheetModal from "@/components/SheetModal.vue"
@@ -11,6 +11,7 @@ import { useToast } from "@/composables/useToast"
 const { showToast } = useToast()
 
 const receivables = ref([])
+const paymentHistory = ref([])
 const searchQuery = ref("")
 const filterStatus = ref("all")
 
@@ -36,6 +37,7 @@ const form = ref({
 
 // Payment modal inside edit
 const paymentAmount = ref("")
+const paymentNote = ref("")
 
 async function loadData() {
   try {
@@ -54,6 +56,35 @@ const filteredReceivables = computed(() => {
   })
 })
 
+// ── Aging Report Calculation ──────────────────────────────
+const agingSummary = computed(() => {
+  let bucket0_30 = 0
+  let bucket31_60 = 0
+  let bucket60_plus = 0
+
+  const now = new Date()
+
+  receivables.value.forEach(item => {
+    const remaining = (Number(item.amount) || 0) - (Number(item.paid_amount) || 0)
+    if (remaining <= 0) return // Lunas, skip
+
+    // Hitung umur dari created_at atau due_date
+    const ts = item.due_date || item.created_at
+    const d = ts?.toDate ? ts.toDate() : (ts ? new Date(ts) : now)
+    const diffDays = Math.floor((now - d) / (1000 * 60 * 60 * 24))
+
+    if (diffDays <= 30) {
+      bucket0_30 += remaining
+    } else if (diffDays <= 60) {
+      bucket31_60 += remaining
+    } else {
+      bucket60_plus += remaining
+    }
+  })
+
+  return { bucket0_30, bucket31_60, bucket60_plus }
+})
+
 function openAdd() {
   form.value = {
     id: "",
@@ -66,7 +97,7 @@ function openAdd() {
   isAddOpen.value = true
 }
 
-function openEdit(item) {
+async function openEdit(item) {
   let dateStr = ""
   if (item.due_date) {
     const d = item.due_date.toDate ? item.due_date.toDate() : new Date(item.due_date)
@@ -83,6 +114,16 @@ function openEdit(item) {
     status: item.status || "unpaid"
   }
   paymentAmount.value = ""
+  paymentNote.value = ""
+
+  // Ambil riwayat pembayaran cicilan
+  try {
+    paymentHistory.value = await getReceivablePayments(item.id)
+  } catch (err) {
+    console.error("Gagal memuat riwayat cicilan:", err)
+    paymentHistory.value = []
+  }
+
   isEditOpen.value = true
 }
 
@@ -126,9 +167,10 @@ async function submitPayment() {
   }
 
   try {
-    await recordPayment(form.value.id, amountNum)
+    await recordPayment(form.value.id, amountNum, paymentNote.value)
     showToast("Pembayaran cicilan berhasil dicatat")
     paymentAmount.value = ""
+    paymentNote.value = ""
     isEditOpen.value = false
     await loadData()
   } catch (err) {
@@ -158,6 +200,23 @@ onMounted(loadData)
 
 <template>
   <div class="receivable-page">
+
+    <!-- ── Aging Report Widget ── -->
+    <div class="aging-grid">
+      <div class="aging-card">
+        <span class="aging-label">Aging 0–30 Hari</span>
+        <span class="aging-val">Rp {{ Number(agingSummary.bucket0_30).toLocaleString('id-ID') }}</span>
+      </div>
+      <div class="aging-card">
+        <span class="aging-label">Aging 31–60 Hari</span>
+        <span class="aging-val text-warning">Rp {{ Number(agingSummary.bucket31_60).toLocaleString('id-ID') }}</span>
+      </div>
+      <div class="aging-card">
+        <span class="aging-label">Aging >60 Hari</span>
+        <span class="aging-val text-danger">Rp {{ Number(agingSummary.bucket60_plus).toLocaleString('id-ID') }}</span>
+      </div>
+    </div>
+
     <div class="toolbar">
       <SearchInput v-model="searchQuery" placeholder="Cari nama debitur..." />
       <button class="btn-add" @click="openAdd">
@@ -228,7 +287,7 @@ onMounted(loadData)
     </SheetModal>
 
     <!-- Modal Edit & Pembayaran -->
-    <SheetModal v-model="isEditOpen" title="Detail & Pembayaran Piutang">
+    <SheetModal v-model="isEditOpen" title="Detail & Riwayat Cicilan Piutang">
       <div class="sheet-form">
         <div class="status-summary-box">
           <div>Status: <strong>{{ form.status.toUpperCase() }}</strong></div>
@@ -236,12 +295,29 @@ onMounted(loadData)
           <div>Sisa: <strong>Rp {{ Number((form.amount || 0) - (form.paid_amount || 0)).toLocaleString('id-ID') }}</strong></div>
         </div>
 
+        <!-- Form Bayar Cicilan -->
         <div v-if="form.status !== 'paid'" class="payment-box">
           <label class="input-label">Catat Pembayaran / Cicilan (Rp)</label>
-          <div class="payment-input-row">
+          <div class="payment-input-stack">
             <input v-model="paymentAmount" type="number" placeholder="Nominal bayar" class="main-input" />
-            <button @click="submitPayment" class="btn-green btn-pay">Bayar</button>
+            <input v-model="paymentNote" placeholder="Catatan cicilan (opsional, mis. Transfer BCA)" class="main-input" />
+            <button @click="submitPayment" class="btn-green full-width">Simpan Pembayaran Cicilan</button>
           </div>
+        </div>
+
+        <!-- Riwayat Cicilan -->
+        <div class="history-section">
+          <label class="input-label">Riwayat Cicilan Masuk</label>
+          <div v-if="paymentHistory.length > 0" class="history-list">
+            <div v-for="pay in paymentHistory" :key="pay.id" class="history-row">
+              <div>
+                <div class="history-amount">+ Rp {{ Number(pay.amount).toLocaleString('id-ID') }}</div>
+                <div class="history-note">{{ pay.note || 'Tanpa catatan' }}</div>
+              </div>
+              <div class="history-date">{{ formatDate(pay.created_at) }}</div>
+            </div>
+          </div>
+          <p v-else class="empty-history">Belum ada riwayat cicilan.</p>
         </div>
 
         <hr class="divider" />
@@ -276,6 +352,39 @@ onMounted(loadData)
 </template>
 
 <style scoped>
+.aging-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.aging-card {
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-card-border);
+  border-radius: var(--radius-card);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-card);
+}
+
+.aging-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.aging-val {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--color-text-primary);
+  margin-top: 4px;
+}
+
+.text-warning { color: #d97706; }
+.text-danger { color: #dc2626; }
+
 .toolbar {
   display: flex;
   gap: 10px;
@@ -311,7 +420,7 @@ onMounted(loadData)
 }
 
 @media (max-width: 900px) {
-  .receivable-grid {
+  .aging-grid, .receivable-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -423,16 +532,56 @@ onMounted(loadData)
   border-radius: 10px;
 }
 
-.payment-input-row {
+.payment-input-stack {
   display: flex;
+  flex-direction: column;
   gap: 8px;
   margin-top: 4px;
 }
 
-.btn-pay {
-  margin-top: 0 !important;
-  padding: 0 16px !important;
-  white-space: nowrap;
+.history-section {
+  margin-top: 8px;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+  margin-top: 4px;
+}
+
+.history-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--color-chip-bg);
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.history-amount {
+  font-weight: 700;
+  color: var(--color-green);
+}
+
+.history-note {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+
+.history-date {
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+}
+
+.empty-history {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-style: italic;
+  margin-top: 4px;
 }
 
 .divider {

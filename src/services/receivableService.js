@@ -9,7 +9,8 @@ import {
   orderBy,
   serverTimestamp,
   Timestamp,
-  getDoc
+  getDoc,
+  writeBatch
 } from "firebase/firestore"
 import { db } from "../firebase"
 import { useAuth } from "../composables/useAuth"
@@ -18,6 +19,18 @@ const receivableRef = collection(db, "receivables")
 
 export async function getReceivables() {
   const q = query(receivableRef, orderBy("created_at", "desc"))
+  const snapshot = await getDocs(q)
+  return snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }))
+}
+
+export async function getReceivablePayments(receivableId) {
+  const q = query(
+    collection(db, "receivables", receivableId, "receivable_payments"),
+    orderBy("created_at", "asc")
+  )
   const snapshot = await getDocs(q)
   return snapshot.docs.map(doc => ({
     id: doc.id,
@@ -53,7 +66,6 @@ export async function updateReceivable(id, data) {
   const newAmount = Number(data.amount)
   const currentPaid = current.paid_amount || 0
 
-  // Hitung ulang status berdasarkan total amount baru vs paid_amount yang sudah ada
   let newStatus = "unpaid"
   if (currentPaid >= newAmount) {
     newStatus = "paid"
@@ -72,9 +84,13 @@ export async function updateReceivable(id, data) {
   })
 }
 
-export async function recordPayment(id, paymentAmount) {
-  const ref = doc(db, "receivables", id)
-  const snap = await getDoc(ref)
+export async function recordPayment(receivableId, paymentAmount, note = "") {
+  const batch = writeBatch(db)
+  const receivableDocRef = doc(db, "receivables", receivableId)
+  const paymentCollectionRef = collection(receivableDocRef, "receivable_payments")
+  const newPaymentDocRef = doc(paymentCollectionRef)
+
+  const snap = await getDoc(receivableDocRef)
   if (!snap.exists()) throw new Error("Piutang tidak ditemukan")
   const data = snap.data()
 
@@ -87,24 +103,25 @@ export async function recordPayment(id, paymentAmount) {
   }
 
   let newPaid = currentPaid + addAmount
-  // Clamp agar paid_amount tidak melebihi total amount
-  if (newPaid > totalAmount) {
-    newPaid = totalAmount
-  }
+  if (newPaid > totalAmount) newPaid = totalAmount
 
   let newStatus = "unpaid"
-  if (newPaid >= totalAmount) {
-    newStatus = "paid"
-  } else if (newPaid > 0) {
-    newStatus = "partial"
-  }
+  if (newPaid >= totalAmount) newStatus = "paid"
+  else if (newPaid > 0) newStatus = "partial"
 
-  await updateDoc(ref, {
+  batch.update(receivableDocRef, {
     paid_amount: newPaid,
     status: newStatus,
     updated_at: serverTimestamp()
   })
 
+  batch.set(newPaymentDocRef, {
+    amount: addAmount,
+    note: note,
+    created_at: serverTimestamp()
+  })
+
+  await batch.commit()
   return { paid_amount: newPaid, status: newStatus }
 }
 
