@@ -18,6 +18,7 @@ const products = ref([])
 const isAddOpen = ref(false)
 const name = ref("")
 const phone = ref("")
+const nik = ref("") // Kolom baru
 const address = ref("")
 const productId = ref("")
 const price = ref("")
@@ -40,7 +41,7 @@ const isUpdating   = ref(false)
 const isEditDatePickerOpen = ref(false)
 const isEditPasswordOpen   = ref(false)
 const editForm     = ref({
-  id: "", name: "", phone: "", address: "",
+  id: "", name: "", phone: "", nik: "", address: "",
   product_id: "", product_name: "", custom_price: "", is_active: true,
   join_date: "", balance: 0, password: "", has_password: false
 })
@@ -55,6 +56,7 @@ function openEdit(customer) {
     id:           customer.id,
     name:         customer.name         ?? "",
     phone:        customer.phone        ?? "",
+    nik:          customer.nik          ?? "",
     address:      customer.address      ?? "",
     product_id:   customer.product_id   ?? "",
     product_name: customer.product_name ?? "",
@@ -170,6 +172,7 @@ async function submitCustomer() {
   await addCustomer({
     name: name.value,
     phone: phone.value,
+    nik: nik.value,
     address: address.value,
     product_id: product.id,
     product_name: product.name,
@@ -180,6 +183,7 @@ async function submitCustomer() {
   // reset
   name.value = ""
   phone.value = ""
+  nik.value = ""
   address.value = ""
   productId.value = ""
   price.value = ""
@@ -247,6 +251,10 @@ onMounted(() => {
           <input v-model="phone" placeholder="0812..." class="main-input" />
         </div>
         <div class="form-group">
+          <label class="input-label">NIK / KTP</label>
+          <input v-model="nik" placeholder="Nomor KTP" class="main-input" />
+        </div>
+        <div class="form-group">
           <label class="input-label">Pilih Paket Internet</label>
           <select v-model="productId" class="main-input">
             <option value="">-- Pilih Paket --</option>
@@ -292,6 +300,10 @@ onMounted(() => {
         <div class="form-group">
           <label class="input-label">Nomor WhatsApp</label>
           <input v-model="editForm.phone" placeholder="0812..." class="main-input" />
+        </div>
+        <div class="form-group">
+          <label class="input-label">NIK / KTP</label>
+          <input v-model="editForm.nik" placeholder="Nomor KTP" class="main-input" />
         </div>
         <div class="form-group">
           <label class="input-label">Pilih Paket Internet</label>

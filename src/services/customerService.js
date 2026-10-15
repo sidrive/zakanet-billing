@@ -67,6 +67,7 @@ export async function updateCustomer(id, data) {
    name: data.name,
    name_lowercase: data.name.toLowerCase(),
    phone: data.phone,
+   nik: data.nik || "",
    address: data.address,
    product_id: data.product_id,
    product_name: data.product_name,
