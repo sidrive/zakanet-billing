@@ -34,6 +34,7 @@ export async function addExpense(data) {
     amount: Number(data.amount),
     date: data.date ? Timestamp.fromDate(new Date(data.date)) : serverTimestamp(),
     payment_method: data.payment_method || "Tunai",
+    is_isp_bill: !!data.is_isp_bill,
     note: data.note || "",
     created_by: userEmail,
     created_at: serverTimestamp(),
@@ -49,6 +50,7 @@ export async function updateExpense(id, data) {
     amount: Number(data.amount),
     date: data.date ? Timestamp.fromDate(new Date(data.date)) : serverTimestamp(),
     payment_method: data.payment_method || "Tunai",
+    is_isp_bill: !!data.is_isp_bill,
     note: data.note || "",
     updated_at: serverTimestamp()
   })

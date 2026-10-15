@@ -35,7 +35,8 @@ const form = ref({
   amount: "",
   date: new Date().toISOString().slice(0, 10),
   payment_method: "Tunai",
-  note: ""
+  note: "",
+  is_isp_bill: false
 })
 
 async function loadData() {
@@ -229,6 +230,14 @@ onMounted(loadData)
           </select>
         </div>
         <div class="form-group">
+          <label class="input-label">Tag untuk ISP Pusat?</label>
+          <div class="checkbox-row">
+            <label class="checkbox-label">
+              <input type="checkbox" v-model="form.is_isp_bill" /> Ya, ini tagihan untuk ISP Pusat
+            </label>
+          </div>
+        </div>
+        <div class="form-group">
           <label class="input-label">Catatan (Opsional)</label>
           <textarea v-model="form.note" placeholder="Keterangan tambahan..." class="main-input textarea"></textarea>
         </div>
@@ -264,6 +273,14 @@ onMounted(loadData)
             <option value="Transfer">Transfer</option>
             <option value="Lainnya">Lainnya</option>
           </select>
+        </div>
+        <div class="form-group">
+          <label class="input-label">Tag untuk ISP Pusat?</label>
+          <div class="checkbox-row">
+            <label class="checkbox-label">
+              <input type="checkbox" v-model="form.is_isp_bill" /> Ya, ini tagihan untuk ISP Pusat
+            </label>
+          </div>
         </div>
         <div class="form-group">
           <label class="input-label">Catatan (Opsional)</label>

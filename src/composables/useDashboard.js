@@ -76,20 +76,30 @@ export function useDashboard() {
       }
     })
 
-    // 3️⃣ Ambil total pengeluaran (expenses) bulan ini untuk menggantikan taksiran 50% ispCost
+    // 3️⃣ Hitung Kewajiban ISP Pusat & Operasional Lokal
     // Format month: "YYYY-MM"
     const expensesSnap = await getDocs(collection(db, "expenses"))
-    let totalExpensesMonth = 0
+    let totalOtherExpensesMonth = 0
+    let totalIspBillExpensesMonth = 0
+
     expensesSnap.forEach(doc => {
       const d = doc.data()
       const date = d.date?.toDate ? d.date.toDate() : (d.date ? new Date(d.date) : null)
       if (date && !isNaN(date)) {
         const itemMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
         if (itemMonth === month) {
-          totalExpensesMonth += Number(d.amount) || 0
+          const amt = Number(d.amount) || 0
+          if (d.is_isp_bill) {
+            totalIspBillExpensesMonth += amt
+          } else {
+            totalOtherExpensesMonth += amt
+          }
         }
       }
     })
+
+    const baseIspShare = Math.round(totalBillableAmount / 2)
+    const totalIspObligation = baseIspShare + totalIspBillExpensesMonth
 
     // Query total piutang semua bulan
     const unpaidAllQuery = query(
@@ -159,8 +169,8 @@ export function useDashboard() {
       totalOutstandingMonth,
       totalOutstandingAll,
       totalBillableAmount,
-      ispCost: totalExpensesMonth > 0 ? totalExpensesMonth : Math.round(totalBillableAmount / 2),
-      isRealExpense: totalExpensesMonth > 0
+      ispObligation: totalIspObligation,
+      otherExpenses: totalOtherExpensesMonth
     }
 
     unpaidList.value = debtList

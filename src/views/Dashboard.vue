@@ -49,16 +49,13 @@ const initials = (name) => (name || "?").charAt(0).toUpperCase()
           <h2 class="stat-card__value">Rp {{ formatRupiah(summary.totalRevenue) }}</h2>
         </div>
         <div class="stat-card">
-          <p class="stat-card__label">Piutang Aktif</p>
-          <h2 class="stat-card__value stat-card__value--red">Rp {{ formatRupiah(summary.totalOutstandingAll) }}</h2>
+          <p class="stat-card__label">Kewajiban ke ISP Pusat</p>
+          <h2 class="stat-card__value stat-card__value--red">Rp {{ formatRupiah(summary.ispObligation) }}</h2>
+          <p class="stat-card__sublabel">50% omzet + tagihan teknisi</p>
         </div>
         <div class="stat-card">
-          <p class="stat-card__label">Pengeluaran Riil (ISP)</p>
-          <h2 class="stat-card__value">Rp {{ formatRupiah(summary.ispCost) }}</h2>
-          <p class="stat-card__sublabel">
-            <template v-if="summary.isRealExpense">Dari modul pengeluaran bulan ini</template>
-            <template v-else>Estimasi 50% (belum ada data pengeluaran)</template>
-          </p>
+          <p class="stat-card__label">Operasional Lokal</p>
+          <h2 class="stat-card__value">Rp {{ formatRupiah(summary.otherExpenses) }}</h2>
         </div>
       </div>
 
