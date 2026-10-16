@@ -33,8 +33,7 @@ const DEFAULT_REVENUE_CATEGORIES = [
 export async function getCategories(type) {
   const q = query(
     categoryRef,
-    where("type", "==", type),
-    orderBy("created_at", "asc")
+    where("type", "==", type)
   )
   const snapshot = await getDocs(q)
 
