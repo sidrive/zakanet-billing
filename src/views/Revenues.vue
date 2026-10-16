@@ -512,6 +512,20 @@ onMounted(loadData)
   gap: 12px;
 }
 
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
 .main-input {
   padding: 11px 14px;
   border-radius: 10px;
