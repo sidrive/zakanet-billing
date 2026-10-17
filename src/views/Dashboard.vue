@@ -49,14 +49,20 @@ const initials = (name) => (name || "?").charAt(0).toUpperCase()
           <h2 class="stat-card__value">Rp {{ formatRupiah(summary.totalRevenue) }}</h2>
         </div>
         <div class="stat-card">
-          <p class="stat-card__label">Kewajiban ke ISP Pusat</p>
+          <p class="stat-card__label">Kewajiban Bulan Ini ke Pusat</p>
           <h2 class="stat-card__value stat-card__value--red">Rp {{ formatRupiah(summary.ispObligation) }}</h2>
-          <p class="stat-card__sublabel">50% omzet + tagihan teknisi</p>
+          <p class="stat-card__sublabel">50% omzet (Rp {{ formatRupiah(summary.baseIspShare) }}) + Jasa Teknisi (Rp {{ formatRupiah(summary.totalIspBillExpensesMonth) }})</p>
         </div>
         <div class="stat-card">
-          <p class="stat-card__label">Operasional Lokal</p>
-          <h2 class="stat-card__value">Rp {{ formatRupiah(summary.otherExpenses) }}</h2>
+          <p class="stat-card__label">Hutang Material / Barang</p>
+          <h2 class="stat-card__value stat-card__value--red">Rp {{ formatRupiah(summary.totalUnpaidPayables) }}</h2>
+          <p class="stat-card__sublabel">Sisa hutang barang ke supplier/pusat</p>
         </div>
+      </div>
+
+      <div class="grand-total-banner">
+        <span>Grand Total Wajib Dibayar ke ISP Pusat:</span>
+        <strong>Rp {{ formatRupiah(summary.grandTotalIspObligation) }}</strong>
       </div>
 
       <div class="mini-stats-grid">
@@ -169,9 +175,23 @@ const initials = (name) => (name || "?").charAt(0).toUpperCase()
 .stat-card__value--red { color: var(--color-red); }
 
 .stat-card__sublabel {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--color-text-secondary);
   margin-top: 4px;
+}
+
+.grand-total-banner {
+  margin-top: 14px;
+  padding: 12px 18px;
+  border-radius: var(--radius-card);
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 /* --- Mini status grid --- */

@@ -76,7 +76,7 @@ export function useDashboard() {
       }
     })
 
-    // 3️⃣ Hitung Kewajiban ISP Pusat & Operasional Lokal
+    // 3️⃣ Hitung Kewajiban ISP Pusat, Hutang Material, & Operasional Lokal
     // Format month: "YYYY-MM"
     const expensesSnap = await getDocs(collection(db, "expenses"))
     let totalOtherExpensesMonth = 0
@@ -95,6 +95,17 @@ export function useDashboard() {
             totalOtherExpensesMonth += amt
           }
         }
+      }
+    })
+
+    // Hitung sisa hutang material/perangkat dari koleksi payables
+    const payablesSnap = await getDocs(collection(db, "payables"))
+    let totalUnpaidPayables = 0
+    payablesSnap.forEach(doc => {
+      const d = doc.data()
+      const remaining = (Number(d.amount) || 0) - (Number(d.paid_amount) || 0)
+      if (remaining > 0) {
+        totalUnpaidPayables += remaining
       }
     })
 
@@ -169,7 +180,11 @@ export function useDashboard() {
       totalOutstandingMonth,
       totalOutstandingAll,
       totalBillableAmount,
+      baseIspShare,
+      totalIspBillExpensesMonth,
       ispObligation: totalIspObligation,
+      totalUnpaidPayables,
+      grandTotalIspObligation: totalIspObligation + totalUnpaidPayables,
       otherExpenses: totalOtherExpensesMonth
     }
 
