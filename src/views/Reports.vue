@@ -633,9 +633,23 @@ function printSettlement() {
 
 /* Print CSS */
 @media print {
-  .no-print, .sidebar, .topbar, .bottom-nav { display: none !important; }
-  .print-area { border: none !important; box-shadow: none !important; padding: 0 !important; }
-  body { background: #ffffff !important; }
+  body * {
+    visibility: hidden;
+  }
+  .print-area, .print-area * {
+    visibility: visible;
+  }
+  .print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 20px !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+  }
 }
 
 /* Common */
