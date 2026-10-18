@@ -1,16 +1,20 @@
-import { collection, getDocs, query, where, orderBy } from "firebase/firestore"
-import { Timestamp } from "firebase/firestore"
+import { collection, getDocs, query, where, orderBy, Timestamp } from "firebase/firestore"
 import { db } from "../firebase"
 
 export async function getMonthSummary(month) {
-  const snap = await getDocs(query(collection(db, "invoices"), where("month", "==", month)))
+  const [invoicesSnap, revenuesSnap, expensesSnap, payablesSnap] = await Promise.all([
+    getDocs(query(collection(db, "invoices"), where("month", "==", month))),
+    getDocs(collection(db, "revenues")),
+    getDocs(collection(db, "expenses")),
+    getDocs(collection(db, "payables"))
+  ])
 
   let totalOmzet = 0
   let totalTerbayar = 0
   let autoCount = 0
   let total = 0
 
-  snap.forEach(doc => {
+  invoicesSnap.forEach(doc => {
     const d = doc.data()
     totalOmzet += Number(d.amount) || 0
     totalTerbayar += Number(d.paid_amount) || 0
@@ -18,11 +22,115 @@ export async function getMonthSummary(month) {
     total++
   })
 
+  // Pendapatan Lain bulan ini
+  let totalRevenuesMonth = 0
+  revenuesSnap.forEach(doc => {
+    const d = doc.data()
+    const date = d.date?.toDate ? d.date.toDate() : (d.date ? new Date(d.date) : null)
+    if (date && !isNaN(date)) {
+      const itemMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+      if (itemMonth === month) {
+        totalRevenuesMonth += Number(d.amount) || 0
+      }
+    }
+  })
+
+  // Pengeluaran (dibagi: Tagihan ISP Pusat vs Operasional Lokal)
+  let totalIspBillExpensesMonth = 0
+  let totalLocalExpensesMonth = 0
+  expensesSnap.forEach(doc => {
+    const d = doc.data()
+    const date = d.date?.toDate ? d.date.toDate() : (d.date ? new Date(d.date) : null)
+    if (date && !isNaN(date)) {
+      const itemMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+      if (itemMonth === month) {
+        const amt = Number(d.amount) || 0
+        if (d.is_isp_bill) {
+          totalIspBillExpensesMonth += amt
+        } else {
+          totalLocalExpensesMonth += amt
+        }
+      }
+    }
+  })
+
+  // Sisa Hutang Material Vendor
+  let totalPayablesMonth = 0
+  payablesSnap.forEach(doc => {
+    const d = doc.data()
+    const remaining = (Number(d.amount) || 0) - (Number(d.paid_amount) || 0)
+    if (remaining > 0) {
+      totalPayablesMonth += remaining
+    }
+  })
+
+  const baseIspShare = Math.round(totalOmzet / 2) // 50% bagi hasil dari total tagihan
+  const totalIspObligation = baseIspShare + totalIspBillExpensesMonth // 50% + tagihan teknisi
+  const grandTotalIspObligation = totalIspObligation + totalPayablesMonth // termasuk sisa hutang barang/kabel
+
+  const totalGrossRevenue = totalTerbayar + totalRevenuesMonth
+  const totalAllCosts = totalIspObligation + totalLocalExpensesMonth
+  const netProfit = totalGrossRevenue - totalAllCosts
+
   return {
     totalOmzet,
     totalTerbayar,
     totalPiutang: totalOmzet - totalTerbayar,
-    autoPayRate: total > 0 ? Math.round((autoCount / total) * 100) : 0
+    autoPayRate: total > 0 ? Math.round((autoCount / total) * 100) : 0,
+    totalRevenuesMonth,
+    baseIspShare,
+    totalIspBillExpensesMonth,
+    totalIspObligation,
+    totalPayablesMonth,
+    grandTotalIspObligation,
+    totalLocalExpensesMonth,
+    totalGrossRevenue,
+    totalAllCosts,
+    netProfit
+  }
+}
+
+export async function getIspSettlementDetails(month) {
+  const [invoicesSnap, expensesSnap, payablesSnap] = await Promise.all([
+    getDocs(query(collection(db, "invoices"), where("month", "==", month))),
+    getDocs(collection(db, "expenses")),
+    getDocs(collection(db, "payables"))
+  ])
+
+  let totalInvoiceAmount = 0
+  let totalPaidInvoiceAmount = 0
+  invoicesSnap.forEach(doc => {
+    const d = doc.data()
+    totalInvoiceAmount += Number(d.amount) || 0
+    totalPaidInvoiceAmount += Number(d.paid_amount) || 0
+  })
+  const baseIspShare = Math.round(totalInvoiceAmount / 2)
+
+  const ispTechExpenses = []
+  expensesSnap.forEach(doc => {
+    const d = doc.data()
+    const date = d.date?.toDate ? d.date.toDate() : (d.date ? new Date(d.date) : null)
+    if (date && !isNaN(date)) {
+      const itemMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+      if (itemMonth === month && d.is_isp_bill) {
+        ispTechExpenses.push({ id: doc.id, ...d, date })
+      }
+    }
+  })
+
+  const activePayables = []
+  payablesSnap.forEach(doc => {
+    const d = doc.data()
+    const remaining = (Number(d.amount) || 0) - (Number(d.paid_amount) || 0)
+    if (remaining > 0) {
+      activePayables.push({ id: doc.id, ...d, remaining })
+    }
+  })
+
+  return {
+    baseIspShare,
+    ispTechExpenses,
+    activePayables
   }
 }
 
@@ -126,13 +234,6 @@ export async function getTopDepositCustomers(n = 5) {
     .slice(0, n)
 }
 
-/**
- * Ambil detail invoice bulan tertentu, digabung dengan
- * data balance (customers) dan catatan pembayaran (payments).
- *
- * Auto-subscribed invoice tidak memiliki payment record karena
- * balance langsung dipotong tanpa transaksi manual.
- */
 export async function getDetailedInvoices(month) {
   const [year, monthNum] = month.split("-").map(Number)
   const daysInMonth = new Date(year, monthNum, 0).getDate()
@@ -150,14 +251,11 @@ export async function getDetailedInvoices(month) {
     ))
   ])
 
-  // Map: customer_id → balance
   const balanceMap = {}
   customersSnap.forEach(doc => {
     balanceMap[doc.id] = Number(doc.data().balance) || 0
   })
 
-  // Map: customer_id → most recent payment note in month
-  // (auto-subscribed invoices have no payment record — note stays "-")
   const noteMap = {}
   paymentsSnap.forEach(doc => {
     const d = doc.data()
@@ -186,7 +284,6 @@ export async function getDetailedInvoices(month) {
       }
     })
     .sort((a, b) => {
-      // paid first, then partial, then unpaid
       const order = { paid: 0, partial: 1, unpaid: 2 }
       return (order[a.status] ?? 3) - (order[b.status] ?? 3)
     })

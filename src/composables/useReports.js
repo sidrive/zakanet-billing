@@ -1,6 +1,7 @@
 import { ref } from "vue"
 import {
   getMonthSummary,
+  getIspSettlementDetails,
   getDailyTrend,
   getMonthlyTrend,
   getPackageDistribution,
@@ -12,6 +13,7 @@ export function useReports() {
   const loading = ref(false)
   const error = ref(null)
   const reportData = ref(null)
+  const settlementData = ref(null)
   const detailRows = ref([])
   const selectedMonth = ref(new Date().toISOString().slice(0, 7))
 
@@ -20,8 +22,9 @@ export function useReports() {
     error.value = null
 
     try {
-      const [summary, dailyTrend, monthlyTrend, packageDist, topCustomers, detail] = await Promise.all([
+      const [summary, settlement, dailyTrend, monthlyTrend, packageDist, topCustomers, detail] = await Promise.all([
         getMonthSummary(month),
+        getIspSettlementDetails(month),
         getDailyTrend(month),
         getMonthlyTrend(),
         getPackageDistribution(),
@@ -30,6 +33,7 @@ export function useReports() {
       ])
 
       reportData.value = { summary, dailyTrend, monthlyTrend, packageDist, topCustomers }
+      settlementData.value = settlement
       detailRows.value = detail
     } catch (e) {
       error.value = e.message
@@ -43,5 +47,5 @@ export function useReports() {
     loadReports(month)
   }
 
-  return { loading, error, reportData, detailRows, selectedMonth, loadReports, setMonth }
+  return { loading, error, reportData, settlementData, detailRows, selectedMonth, loadReports, setMonth }
 }
