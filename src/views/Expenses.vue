@@ -72,7 +72,8 @@ function openAdd() {
     amount: "",
     date: new Date().toISOString().slice(0, 10),
     payment_method: "Tunai",
-    note: ""
+    note: "",
+    is_isp_bill: false
   }
   isAddOpen.value = true
 }
@@ -90,7 +91,8 @@ function openEdit(item) {
     amount: item.amount,
     date: dateStr,
     payment_method: item.payment_method || "Tunai",
-    note: item.note || ""
+    note: item.note || "",
+    is_isp_bill: item.is_isp_bill ?? false
   }
   isEditOpen.value = true
 }
