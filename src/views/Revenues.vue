@@ -36,10 +36,7 @@ const form = ref({
   date: new Date().toISOString().slice(0, 10),
   payer_name: "",
   payment_method: "Tunai",
-  note: "",
-  is_partial: false,
-  paid_amount: "",
-  due_date: ""
+  note: ""
 })
 
 async function loadData() {
@@ -77,10 +74,7 @@ function openAdd() {
     date: new Date().toISOString().slice(0, 10),
     payer_name: "",
     payment_method: "Tunai",
-    note: "",
-    is_partial: false,
-    paid_amount: "",
-    due_date: ""
+    note: ""
   }
   isAddOpen.value = true
 }
@@ -232,19 +226,6 @@ onMounted(loadData)
         <div class="form-group">
           <label class="input-label">Nominal Total (Rp)</label>
           <input v-model="form.amount" type="number" placeholder="0" class="main-input" />
-        </div>
-        <div class="form-group checkbox-row">
-          <label class="checkbox-label">
-            <input type="checkbox" v-model="form.is_partial" /> Belum Lunas Sepenuhnya (Catat sisa ke Piutang)
-          </label>
-        </div>
-        <div v-if="form.is_partial" class="form-group">
-          <label class="input-label">Sudah Dibayar / Diterima (Rp)</label>
-          <input v-model="form.paid_amount" type="number" placeholder="0" class="main-input" />
-        </div>
-        <div v-if="form.is_partial" class="form-group">
-          <label class="input-label">Jatuh Tempo Piutang Sisa (Opsional)</label>
-          <input v-model="form.due_date" type="date" class="main-input" />
         </div>
         <div class="form-group">
           <label class="input-label">Tanggal</label>
