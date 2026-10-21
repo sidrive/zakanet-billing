@@ -65,6 +65,11 @@ const initials = (name) => (name || "?").charAt(0).toUpperCase()
         <strong>Rp {{ formatRupiah(summary.grandTotalIspObligation) }}</strong>
       </div>
 
+      <div class="piutang-banner">
+        <span>Piutang Aktif (Tagihan Pelanggan Belum Lunas):</span>
+        <strong>Rp {{ formatRupiah(summary.totalOutstandingAll) }}</strong>
+      </div>
+
       <div class="mini-stats-grid">
         <div class="mini-stat">
           <div class="mini-stat__value mini-stat__value--green">{{ summary.paidCount }}</div>
@@ -187,6 +192,20 @@ const initials = (name) => (name || "?").charAt(0).toUpperCase()
   background: #fef2f2;
   border: 1px solid #fecaca;
   color: #991b1b;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.piutang-banner {
+  margin-top: 10px;
+  padding: 12px 18px;
+  border-radius: var(--radius-card);
+  background: var(--color-orange-tint);
+  border: 1px solid #FED7AA;
+  color: var(--color-orange-text);
   display: flex;
   justify-content: space-between;
   align-items: center;
