@@ -10,7 +10,7 @@ import {
   serverTimestamp,
   Timestamp,
   getDoc,
-  writeBatch
+  runTransaction
 } from "firebase/firestore"
 import { db } from "../firebase"
 import { useAuth } from "../composables/useAuth"
@@ -84,45 +84,54 @@ export async function updatePayable(id, data) {
   })
 }
 
+// Dibungkus runTransaction (bukan getDoc + writeBatch) supaya baca-cek-tulis atomik --
+// kalau dua tab/dua orang mencatat pembayaran untuk hutang yang sama nyaris bersamaan,
+// transaksi kedua akan membaca saldo TERBARU (bukan data basi yang sudah divalidasi di
+// klien sebelumnya), sehingga tidak bisa menembus sisa hutang yang sebenarnya.
+// Overpayment ditolak (bukan di-clamp diam-diam) supaya nominal yang tercatat di riwayat
+// cicilan (payable_payments) selalu sama persis dengan yang benar-benar ditambahkan ke
+// paid_amount -- tidak ada lagi riwayat yang totalnya melebihi nilai hutang.
 export async function recordPayablePayment(payableId, paymentAmount, note = "") {
-  const batch = writeBatch(db)
-  const payableDocRef = doc(db, "payables", payableId)
-  const paymentCollectionRef = collection(payableDocRef, "payable_payments")
-  const newPaymentDocRef = doc(paymentCollectionRef)
-
-  const snap = await getDoc(payableDocRef)
-  if (!snap.exists()) throw new Error("Hutang tidak ditemukan")
-  const data = snap.data()
-
-  const totalAmount = data.amount || 0
-  const currentPaid = data.paid_amount || 0
   const addAmount = Number(paymentAmount)
-
   if (addAmount <= 0) {
     throw new Error("Nominal pembayaran harus lebih dari 0")
   }
 
-  let newPaid = currentPaid + addAmount
-  if (newPaid > totalAmount) newPaid = totalAmount
+  const payableDocRef = doc(db, "payables", payableId)
 
-  let newStatus = "unpaid"
-  if (newPaid >= totalAmount) newStatus = "paid"
-  else if (newPaid > 0) newStatus = "partial"
+  return await runTransaction(db, async (tx) => {
+    const snap = await tx.get(payableDocRef)
+    if (!snap.exists()) throw new Error("Hutang tidak ditemukan")
+    const data = snap.data()
 
-  batch.update(payableDocRef, {
-    paid_amount: newPaid,
-    status: newStatus,
-    updated_at: serverTimestamp()
+    const totalAmount = data.amount || 0
+    const currentPaid = data.paid_amount || 0
+    const remaining = totalAmount - currentPaid
+
+    if (addAmount > remaining) {
+      throw new Error(`Nominal pembayaran melebihi sisa hutang saat ini (Rp ${remaining.toLocaleString('id-ID')})`)
+    }
+
+    const newPaid = currentPaid + addAmount
+    let newStatus = "unpaid"
+    if (newPaid >= totalAmount) newStatus = "paid"
+    else if (newPaid > 0) newStatus = "partial"
+
+    tx.update(payableDocRef, {
+      paid_amount: newPaid,
+      status: newStatus,
+      updated_at: serverTimestamp()
+    })
+
+    const newPaymentDocRef = doc(collection(payableDocRef, "payable_payments"))
+    tx.set(newPaymentDocRef, {
+      amount: addAmount,
+      note: note,
+      created_at: serverTimestamp()
+    })
+
+    return { paid_amount: newPaid, status: newStatus }
   })
-
-  batch.set(newPaymentDocRef, {
-    amount: addAmount,
-    note: note,
-    created_at: serverTimestamp()
-  })
-
-  await batch.commit()
-  return { paid_amount: newPaid, status: newStatus }
 }
 
 export async function deletePayable(id) {
