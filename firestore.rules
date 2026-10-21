@@ -33,12 +33,6 @@ service cloud.firestore {
     match /products/{id}       { allow read, write: if isApproved(); }
     match /expenses/{id}       { allow read, write: if isApproved(); }
     match /revenues/{id}       { allow read, write: if isApproved(); }
-    match /receivables/{id}    {
-        allow read, write: if isApproved();
-        match /receivable_payments/{paymentId} {
-            allow read, write: if isApproved();
-        }
-    }
     match /payables/{id}       {
         allow read, write: if isApproved();
         match /payable_payments/{paymentId} {
