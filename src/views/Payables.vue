@@ -38,6 +38,14 @@ const form = ref({
 // Payment modal inside edit
 const paymentAmount = ref("")
 const paymentNote = ref("")
+const paymentMethod = ref("tunai_transfer") // "tunai_transfer" | "barang"
+const paymentItemDescription = ref("")
+const paymentCombinedMonthly = ref(false)
+
+const PAYMENT_METHOD_LABEL = {
+  tunai_transfer: "Tunai / Transfer",
+  barang: "Ganti Barang"
+}
 
 async function loadData() {
   try {
@@ -86,6 +94,9 @@ async function openEdit(item) {
   }
   paymentAmount.value = ""
   paymentNote.value = ""
+  paymentMethod.value = "tunai_transfer"
+  paymentItemDescription.value = ""
+  paymentCombinedMonthly.value = false
 
   try {
     paymentHistory.value = await getPayablePayments(item.id)
@@ -130,6 +141,9 @@ async function submitPayment() {
   if (!amountNum || amountNum <= 0) {
     return alert("Masukkan nominal pembayaran yang valid.")
   }
+  if (paymentMethod.value === "barang" && !paymentItemDescription.value.trim()) {
+    return alert("Deskripsi barang wajib diisi untuk pelunasan via ganti barang.")
+  }
 
   const currentRemaining = (form.value.amount || 0) - (form.value.paid_amount || 0)
   if (amountNum > currentRemaining) {
@@ -137,10 +151,19 @@ async function submitPayment() {
   }
 
   try {
-    await recordPayablePayment(form.value.id, amountNum, paymentNote.value)
+    await recordPayablePayment(form.value.id, {
+      amount: amountNum,
+      method: paymentMethod.value,
+      item_description: paymentItemDescription.value,
+      is_combined_with_monthly_settlement: paymentCombinedMonthly.value,
+      note: paymentNote.value
+    })
     showToast("Pembayaran hutang dicatat")
     paymentAmount.value = ""
     paymentNote.value = ""
+    paymentMethod.value = "tunai_transfer"
+    paymentItemDescription.value = ""
+    paymentCombinedMonthly.value = false
     isEditOpen.value = false
     await loadData()
   } catch (err) {
@@ -250,10 +273,40 @@ onMounted(loadData)
 
         <!-- Form Bayar Hutang -->
         <div v-if="form.status !== 'paid'" class="payment-box">
-          <label class="input-label">Bayar / Cicil Hutang (Rp)</label>
+          <label class="input-label">Bayar / Cicil Hutang</label>
           <div class="payment-input-stack">
-            <input v-model="paymentAmount" type="number" placeholder="Nominal bayar" class="main-input" />
-            <input v-model="paymentNote" placeholder="Catatan (mis. Digabung setoran bulanan / ganti barang)" class="main-input" />
+            <div class="method-toggle-group">
+              <button
+                type="button"
+                :class="['method-toggle-btn', paymentMethod === 'tunai_transfer' ? 'active' : '']"
+                @click="paymentMethod = 'tunai_transfer'"
+              >Tunai / Transfer</button>
+              <button
+                type="button"
+                :class="['method-toggle-btn', paymentMethod === 'barang' ? 'active' : '']"
+                @click="paymentMethod = 'barang'"
+              >Ganti Barang</button>
+            </div>
+
+            <input
+              v-model="paymentAmount"
+              type="number"
+              :placeholder="paymentMethod === 'barang' ? 'Nilai taksiran barang (Rp)' : 'Nominal bayar (Rp)'"
+              class="main-input"
+            />
+            <input
+              v-if="paymentMethod === 'barang'"
+              v-model="paymentItemDescription"
+              placeholder="Deskripsi barang pengganti (wajib)"
+              class="main-input"
+            />
+            <input v-model="paymentNote" placeholder="Catatan tambahan (opsional)" class="main-input" />
+
+            <label class="checkbox-label">
+              <input type="checkbox" v-model="paymentCombinedMonthly" />
+              Digabung dengan setoran bulanan ke ISP Pusat
+            </label>
+
             <button @click="submitPayment" class="btn-green full-width">Simpan Pembayaran</button>
           </div>
         </div>
@@ -265,6 +318,13 @@ onMounted(loadData)
             <div v-for="pay in paymentHistory" :key="pay.id" class="history-row">
               <div>
                 <div class="history-amount">- Rp {{ Number(pay.amount).toLocaleString('id-ID') }}</div>
+                <div class="history-tags">
+                  <span class="method-badge" :class="`method-badge--${pay.method || 'tunai_transfer'}`">
+                    {{ PAYMENT_METHOD_LABEL[pay.method] || PAYMENT_METHOD_LABEL.tunai_transfer }}
+                  </span>
+                  <span v-if="pay.is_combined_with_monthly_settlement" class="method-badge method-badge--monthly">+ Setoran Bulanan</span>
+                </div>
+                <div v-if="pay.method === 'barang' && pay.item_description" class="history-note">Barang: {{ pay.item_description }}</div>
                 <div class="history-note">{{ pay.note || 'Tanpa catatan' }}</div>
               </div>
               <div class="history-date">{{ formatDate(pay.created_at) }}</div>
@@ -457,6 +517,64 @@ onMounted(loadData)
   flex-direction: column;
   gap: 8px;
   margin-top: 4px;
+}
+
+.method-toggle-group {
+  display: flex;
+  gap: 8px;
+}
+
+.method-toggle-btn {
+  flex: 1;
+  padding: 9px;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid var(--color-card-border);
+  background: #FFFFFF;
+  color: var(--color-text-secondary);
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.method-toggle-btn.active {
+  background: var(--color-green-tint);
+  color: var(--color-green);
+  border-color: var(--color-green);
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.history-tags {
+  display: flex;
+  gap: 6px;
+  margin: 3px 0;
+  flex-wrap: wrap;
+}
+
+.method-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-chip-bg);
+  color: var(--color-text-secondary);
+}
+
+.method-badge--barang {
+  background: var(--color-orange-tint);
+  color: var(--color-orange-text);
+}
+
+.method-badge--monthly {
+  background: var(--color-green-tint);
+  color: var(--color-green);
 }
 
 .history-section {

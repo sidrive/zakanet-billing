@@ -91,10 +91,25 @@ export async function updatePayable(id, data) {
 // Overpayment ditolak (bukan di-clamp diam-diam) supaya nominal yang tercatat di riwayat
 // cicilan (payable_payments) selalu sama persis dengan yang benar-benar ditambahkan ke
 // paid_amount -- tidak ada lagi riwayat yang totalnya melebihi nilai hutang.
-export async function recordPayablePayment(payableId, paymentAmount, note = "") {
-  const addAmount = Number(paymentAmount)
+//
+// `payment` menerima:
+//   amount                        - nominal uang ATAU nilai taksiran barang (dua-duanya
+//                                   mengurangi sisa hutang dengan cara yang sama)
+//   method                        - "tunai_transfer" | "barang"
+//   item_description              - wajib kalau method === "barang", deskripsi barang pengganti
+//   is_combined_with_monthly_settlement - opsional, true kalau pelunasan ini digabung
+//                                   dengan setoran kewajiban bulanan ke ISP Pusat
+//   note                          - catatan bebas tambahan, opsional
+export async function recordPayablePayment(payableId, payment) {
+  const addAmount = Number(payment.amount)
   if (addAmount <= 0) {
     throw new Error("Nominal pembayaran harus lebih dari 0")
+  }
+
+  const method = payment.method === "barang" ? "barang" : "tunai_transfer"
+  const itemDescription = (payment.item_description || "").trim()
+  if (method === "barang" && !itemDescription) {
+    throw new Error("Deskripsi barang wajib diisi untuk pelunasan via ganti barang")
   }
 
   const payableDocRef = doc(db, "payables", payableId)
@@ -126,7 +141,10 @@ export async function recordPayablePayment(payableId, paymentAmount, note = "") 
     const newPaymentDocRef = doc(collection(payableDocRef, "payable_payments"))
     tx.set(newPaymentDocRef, {
       amount: addAmount,
-      note: note,
+      method,
+      item_description: method === "barang" ? itemDescription : "",
+      is_combined_with_monthly_settlement: !!payment.is_combined_with_monthly_settlement,
+      note: payment.note || "",
       created_at: serverTimestamp()
     })
 
