@@ -189,6 +189,13 @@ export async function recordPayablePayment(payableId, payment, linkedExpense = n
 }
 
 export async function deletePayable(id) {
+  // Hapus seluruh dokumen subkoleksi payable_payments terlebih dahulu agar tidak ada orphaned data
+  const paymentsQuery = query(collection(db, "payables", id, "payable_payments"))
+  const paymentsSnap = await getDocs(paymentsQuery)
+  const deletePromises = paymentsSnap.docs.map(paymentDoc => deleteDoc(paymentDoc.ref))
+  await Promise.all(deletePromises)
+
+  // Hapus dokumen utama payables
   const ref = doc(db, "payables", id)
   await deleteDoc(ref)
 }

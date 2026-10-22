@@ -6,7 +6,7 @@ import {
   doc,
   query,
   where,
-  orderBy,
+  setDoc,
   serverTimestamp
 } from "firebase/firestore"
 import { db } from "../firebase"
@@ -30,32 +30,51 @@ const DEFAULT_REVENUE_CATEGORIES = [
   "Lainnya"
 ]
 
-export async function getCategories(type) {
-  const q = query(
-    categoryRef,
-    where("type", "==", type)
-  )
-  const snapshot = await getDocs(q)
+// In-flight promise map to prevent in-memory race conditions across concurrent callers
+const inFlightRequests = new Map()
 
-  if (snapshot.empty) {
-    // Seed default categories if none exist
-    const defaults = type === "expense" ? DEFAULT_EXPENSE_CATEGORIES : DEFAULT_REVENUE_CATEGORIES
-    const seeded = []
-    for (const name of defaults) {
-      const docRef = await addDoc(categoryRef, {
-        name,
-        type,
-        created_at: serverTimestamp()
-      })
-      seeded.push({ id: docRef.id, name, type })
-    }
-    return seeded
+export async function getCategories(type) {
+  if (inFlightRequests.has(type)) {
+    return inFlightRequests.get(type)
   }
 
-  return snapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  }))
+  const promise = (async () => {
+    try {
+      const q = query(
+        categoryRef,
+        where("type", "==", type)
+      )
+      const snapshot = await getDocs(q)
+
+      if (snapshot.empty) {
+        // Seed default categories using deterministic document IDs to prevent duplicate seeding
+        // when multiple requests or tabs execute simultaneously.
+        const defaults = type === "expense" ? DEFAULT_EXPENSE_CATEGORIES : DEFAULT_REVENUE_CATEGORIES
+        const seeded = []
+        for (const name of defaults) {
+          const docId = `${type}_${name.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`
+          const categoryDocRef = doc(db, "categories", docId)
+          await setDoc(categoryDocRef, {
+            name,
+            type,
+            created_at: serverTimestamp()
+          }, { merge: true })
+          seeded.push({ id: docId, name, type })
+        }
+        return seeded
+      }
+
+      return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }))
+    } finally {
+      inFlightRequests.delete(type)
+    }
+  })()
+
+  inFlightRequests.set(type, promise)
+  return promise
 }
 
 export async function addCategory(type, name) {

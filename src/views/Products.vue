@@ -11,6 +11,7 @@ const { showToast } = useToast()
 
 const products = ref([])
 const isAddOpen = ref(false)
+const isSubmitting = ref(false)
 
 const name = ref("")
 const speed = ref("")
@@ -28,23 +29,32 @@ const filteredProducts = computed(() => {
 });
 
 async function submitProduct() {
+  if (isSubmitting.value) return
   if (!name.value || !price.value) {
     return alert("Nama & harga wajib diisi")
   }
 
-  await addProduct({
-    name: name.value,
-    speed: speed.value ? Number(speed.value) : null,
-    price: Number(price.value)
-  })
+  isSubmitting.value = true
+  try {
+    await addProduct({
+      name: name.value,
+      speed: speed.value ? Number(speed.value) : null,
+      price: Number(price.value)
+    })
 
-  name.value = ""
-  speed.value = ""
-  price.value = ""
+    name.value = ""
+    speed.value = ""
+    price.value = ""
 
-  isAddOpen.value = false
-  showToast("Paket berhasil disimpan")
-  await loadProducts()
+    isAddOpen.value = false
+    showToast("Paket berhasil disimpan")
+    await loadProducts()
+  } catch (err) {
+    console.error("Gagal menyimpan paket:", err)
+    alert(err.message || "Gagal menyimpan paket")
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 onMounted(loadProducts)
@@ -86,7 +96,9 @@ onMounted(loadProducts)
           <label class="input-label">Harga Bulanan (Rp)</label>
           <input v-model="price" type="number" placeholder="0" class="main-input" />
         </div>
-        <button @click="submitProduct" class="btn-green full-width">Simpan Paket</button>
+        <button @click="submitProduct" :disabled="isSubmitting" class="btn-green full-width">
+          {{ isSubmitting ? "Menyimpan..." : "Simpan Paket" }}
+        </button>
       </div>
     </SheetModal>
   </div>

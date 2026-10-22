@@ -90,6 +90,7 @@ function clearSelectedCustomer() {
 }
 
 async function processPayment() {
+  if (loading.value) return
   if (!preview.value) {
     alert("Lakukan preview dulu")
     return
@@ -99,54 +100,59 @@ async function processPayment() {
 
   loading.value = true
 
-  // Diskon dihitung sebagai "pembayaran tambahan" yang mengurangi tagihan
-  // tanpa perlu uang tunai dari pelanggan.
-  let sisa = Number(payAmount.value) + preview.value.discount
+  try {
+    // Diskon dihitung sebagai "pembayaran tambahan" yang mengurangi tagihan
+    // tanpa perlu uang tunai dari pelanggan.
+    let sisa = Number(payAmount.value) + preview.value.discount
 
-  for (const inv of unpaidInvoices.value) {
-    const sisaInvoice = inv.amount - inv.paid_amount
+    for (const inv of unpaidInvoices.value) {
+      const sisaInvoice = inv.amount - inv.paid_amount
 
-    if (sisa <= 0) break
+      if (sisa <= 0) break
 
-    if (sisa >= sisaInvoice) {
-      // lunasi invoice
-      await updateDoc(doc(db, "invoices", inv.id), {
-        paid_amount: inv.amount,
-        status: "paid",
-        paid_at: new Date()
-      })
-      sisa -= sisaInvoice
-    } else {
-      // partial
-      await updateDoc(doc(db, "invoices", inv.id), {
-        paid_amount: inv.paid_amount + sisa,
-        status: "partial"
-      })
-      sisa = 0
+      if (sisa >= sisaInvoice) {
+        // lunasi invoice
+        await updateDoc(doc(db, "invoices", inv.id), {
+          paid_amount: inv.amount,
+          status: "paid",
+          paid_at: new Date()
+        })
+        sisa -= sisaInvoice
+      } else {
+        // partial
+        await updateDoc(doc(db, "invoices", inv.id), {
+          paid_amount: inv.paid_amount + sisa,
+          status: "partial"
+        })
+        sisa = 0
+      }
     }
-  }
 
-  // sisa uang jadi saldo HANYA jika semua invoice lunas
-  if (sisa > 0) {
-    await updateDoc(doc(db, "customers", selectedCustomer.value.id), {
-      balance: (selectedCustomer.value.balance || 0) + sisa
+    // sisa uang jadi saldo HANYA jika semua invoice lunas
+    if (sisa > 0) {
+      await updateDoc(doc(db, "customers", selectedCustomer.value.id), {
+        balance: (selectedCustomer.value.balance || 0) + sisa
+      })
+    }
+
+    await createPayment({
+      customer_id: selectedCustomer.value.id,
+      name: selectedCustomer.value.name,
+      amount: Number(payAmount.value),
+      discount_type: discountType.value,
+      discount_value: Number(discountValue.value),
+      discount_amount: preview.value.discount,
+      note: "Pembayaran invoice (partial enabled)"
     })
+
+    showToast("Pembayaran berhasil diproses")
+    // Refresh halaman setelah toast sempat tampil
+    setTimeout(() => window.location.reload(), 2200)
+  } catch (err) {
+    console.error("Gagal memproses pembayaran:", err)
+    alert("Gagal memproses pembayaran: " + (err.message || err))
+    loading.value = false
   }
-
-  await createPayment({
-    customer_id: selectedCustomer.value.id,
-    name: selectedCustomer.value.name,
-    amount: Number(payAmount.value),
-    discount_type: discountType.value,
-    discount_value: Number(discountValue.value),
-    discount_amount: preview.value.discount,
-    note: "Pembayaran invoice (partial enabled)"
-  })
-
-  loading.value = false
-  showToast("Pembayaran berhasil diproses")
-  // Refresh halaman setelah toast sempat tampil
-  setTimeout(() => window.location.reload(), 2200)
 }
 
 function simulatePayment() {
@@ -199,28 +205,33 @@ function simulatePayment() {
 }
 
 async function addSaldoOnly() {
-  if (!selectedCustomer.value) return
+  if (!selectedCustomer.value || loading.value) return
   loading.value = true
 
-  const custRef = doc(db, "customers", selectedCustomer.value.id)
+  try {
+    const custRef = doc(db, "customers", selectedCustomer.value.id)
 
-  await updateDoc(custRef, {
-    balance: (selectedCustomer.value.balance || 0) + Number(saldoAmount.value)
-  })
+    await updateDoc(custRef, {
+      balance: (selectedCustomer.value.balance || 0) + Number(saldoAmount.value)
+    })
 
-  await createPayment({
-    customer_id: selectedCustomer.value.id,
-    amount: Number(saldoAmount.value),
-    discount_type: null,
-    discount_value: 0,
-    discount_amount: 0,
-    note: "Top up saldo"
-  })
+    await createPayment({
+      customer_id: selectedCustomer.value.id,
+      amount: Number(saldoAmount.value),
+      discount_type: null,
+      discount_value: 0,
+      discount_amount: 0,
+      note: "Top up saldo"
+    })
 
-  saldoAmount.value = 0
-  loading.value = false
-  showToast("Saldo berhasil ditambahkan")
-  setTimeout(() => window.location.reload(), 2200)
+    saldoAmount.value = 0
+    showToast("Saldo berhasil ditambahkan")
+    setTimeout(() => window.location.reload(), 2200)
+  } catch (err) {
+    console.error("Gagal menambah saldo:", err)
+    alert("Gagal menambah saldo: " + (err.message || err))
+    loading.value = false
+  }
 }
 
 function formatMonthId(monthId) {
@@ -254,6 +265,7 @@ function openConfirm() {
 }
 
 async function confirmProcess() {
+  if (loading.value) return
   showConfirm.value = false
   await processPayment()
 }

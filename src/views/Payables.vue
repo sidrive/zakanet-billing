@@ -25,6 +25,7 @@ const filterOptions = [
 // Modal & Form State
 const isAddOpen = ref(false)
 const isEditOpen = ref(false)
+const isSubmitting = ref(false)
 
 const form = ref({
   id: "",
@@ -113,6 +114,7 @@ async function openEdit(item) {
 }
 
 async function submitAdd() {
+  if (isSubmitting.value) return
   if (!form.value.description || !form.value.amount) {
     return alert("Deskripsi material/barang dan nominal hutang wajib diisi.")
   }
@@ -120,13 +122,22 @@ async function submitAdd() {
     return alert("Nominal hutang harus lebih besar dari 0.")
   }
 
-  await addPayable(form.value)
-  isAddOpen.value = false
-  showToast("Hutang material berhasil dicatat")
-  await loadData()
+  isSubmitting.value = true
+  try {
+    await addPayable(form.value)
+    isAddOpen.value = false
+    showToast("Hutang material berhasil dicatat")
+    await loadData()
+  } catch (err) {
+    console.error("Gagal menambah hutang:", err)
+    alert(err.message || "Gagal menambah hutang")
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 async function submitEdit() {
+  if (isSubmitting.value) return
   if (!form.value.description || !form.value.amount) {
     return alert("Deskripsi material/barang dan nominal hutang wajib diisi.")
   }
@@ -134,13 +145,22 @@ async function submitEdit() {
     return alert("Nominal hutang harus lebih besar dari 0.")
   }
 
-  await updatePayable(form.value.id, form.value)
-  isEditOpen.value = false
-  showToast("Perubahan hutang disimpan")
-  await loadData()
+  isSubmitting.value = true
+  try {
+    await updatePayable(form.value.id, form.value)
+    isEditOpen.value = false
+    showToast("Perubahan hutang disimpan")
+    await loadData()
+  } catch (err) {
+    console.error("Gagal mengupdate hutang:", err)
+    alert(err.message || "Gagal mengupdate hutang")
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 async function submitPayment() {
+  if (isSubmitting.value) return
   const amountNum = Number(paymentAmount.value)
   if (!amountNum || amountNum <= 0) {
     return alert("Masukkan nominal pembayaran yang valid.")
@@ -160,6 +180,7 @@ async function submitPayment() {
     return alert(`Nominal pembayaran melebihi sisa hutang (Sisa: Rp ${currentRemaining.toLocaleString('id-ID')})`)
   }
 
+  isSubmitting.value = true
   try {
     await recordPayablePayment(
       form.value.id,
@@ -184,15 +205,35 @@ async function submitPayment() {
     await loadData()
   } catch (err) {
     alert(err.message || "Gagal mencatat pembayaran")
+  } finally {
+    isSubmitting.value = false
   }
 }
 
 async function removePayable(id) {
-  if (!confirm("Yakin ingin menghapus catatan hutang ini?")) return
-  await deletePayable(id)
-  isEditOpen.value = false
-  showToast("Hutang dihapus")
-  await loadData()
+  const currentPayable = payables.value.find(p => p.id === id) || form.value
+  const paidAmount = Number(currentPayable.paid_amount || 0)
+  const hasHistory = paidAmount > 0 || (paymentHistory.value && paymentHistory.value.length > 0)
+
+  let confirmMessage = "Yakin ingin menghapus catatan hutang ini?"
+  if (hasHistory) {
+    const paidText = paidAmount.toLocaleString('id-ID')
+    const historyCount = paymentHistory.value ? paymentHistory.value.length : 0
+    const historyInfo = historyCount > 0 ? ` (${historyCount} kali pembayaran)` : ""
+    confirmMessage = `PERINGATAN: Hutang ini memiliki riwayat pembayaran sebesar Rp ${paidText}${historyInfo}.\n\nMenghapus hutang ini akan menghapus catatan hutang beserta SELURUH riwayat pembayarannya secara permanen.\n\nApakah Anda tetap yakin ingin menghapus?`
+  }
+
+  if (!confirm(confirmMessage)) return
+
+  try {
+    await deletePayable(id)
+    isEditOpen.value = false
+    showToast("Hutang dan riwayat pembayarannya berhasil dihapus")
+    await loadData()
+  } catch (err) {
+    console.error("Gagal menghapus hutang:", err)
+    alert("Gagal menghapus hutang: " + (err.message || err))
+  }
 }
 
 const MONTHS_FULL_ID = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
@@ -274,7 +315,9 @@ onMounted(loadData)
           <label class="input-label">Catatan (Opsional)</label>
           <textarea v-model="form.note" placeholder="Keterangan tambahan..." class="main-input textarea"></textarea>
         </div>
-        <button @click="submitAdd" class="btn-green full-width">Simpan Hutang</button>
+        <button @click="submitAdd" :disabled="isSubmitting" class="btn-green full-width">
+          {{ isSubmitting ? "Menyimpan..." : "Simpan Hutang" }}
+        </button>
       </div>
     </SheetModal>
 
@@ -342,7 +385,9 @@ onMounted(loadData)
               </p>
             </template>
 
-            <button @click="submitPayment" class="btn-green full-width">Simpan Pembayaran</button>
+            <button @click="submitPayment" :disabled="isSubmitting" class="btn-green full-width">
+              {{ isSubmitting ? "Menyimpan..." : "Simpan Pembayaran" }}
+            </button>
           </div>
         </div>
 
@@ -391,8 +436,10 @@ onMounted(loadData)
           <textarea v-model="form.note" placeholder="Keterangan tambahan..." class="main-input textarea"></textarea>
         </div>
         <div class="button-row">
-          <button @click="submitEdit" class="btn-green flex-1">Simpan Perubahan</button>
-          <button @click="removePayable(form.id)" class="btn-danger"><PhTrash size="16" /> Hapus</button>
+          <button @click="submitEdit" :disabled="isSubmitting" class="btn-green flex-1">
+            {{ isSubmitting ? "Menyimpan..." : "Simpan Perubahan" }}
+          </button>
+          <button @click="removePayable(form.id)" :disabled="isSubmitting" class="btn-danger"><PhTrash size="16" /> Hapus</button>
         </div>
       </div>
     </SheetModal>

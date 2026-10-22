@@ -83,6 +83,7 @@ watch(() => editForm.value.product_id, (val) => {
 })
 
 async function submitEdit() {
+  if (isUpdating.value) return
   if (!editForm.value.name || !editForm.value.phone) {
     return alert("Nama dan No HP wajib diisi")
   }
@@ -95,6 +96,9 @@ async function submitEdit() {
     await loadCustomers()
     isEditOpen.value = false
     showToast("Perubahan pelanggan disimpan")
+  } catch (err) {
+    console.error("Gagal mengupdate pelanggan:", err)
+    alert(err.message || "Gagal mengupdate pelanggan")
   } finally {
     isUpdating.value = false
   }
@@ -159,6 +163,7 @@ watch(productId, (val) => {
 })
 
 async function submitCustomer() {
+  if (isSubmitting.value) return
   if (!name.value || !phone.value || !productId.value) {
     return alert("Nama, HP, dan paket wajib diisi")
   }
@@ -169,30 +174,36 @@ async function submitCustomer() {
   const product = products.value.find(p => p.id === productId.value)
   isSubmitting.value = true;
 
-  await addCustomer({
-    name: name.value,
-    phone: phone.value,
-    nik: nik.value,
-    address: address.value,
-    product_id: product.id,
-    product_name: product.name,
-    custom_price: Number(price.value),
-    password: password.value
-  })
+  try {
+    await addCustomer({
+      name: name.value,
+      phone: phone.value,
+      nik: nik.value,
+      address: address.value,
+      product_id: product.id,
+      product_name: product.name,
+      custom_price: Number(price.value),
+      password: password.value
+    })
 
-  // reset
-  name.value = ""
-  phone.value = ""
-  nik.value = ""
-  address.value = ""
-  productId.value = ""
-  price.value = ""
-  password.value = ""
+    // reset
+    name.value = ""
+    phone.value = ""
+    nik.value = ""
+    address.value = ""
+    productId.value = ""
+    price.value = ""
+    password.value = ""
 
-  isSubmitting.value = false;
-  isAddOpen.value = false
-  showToast("Pelanggan berhasil disimpan")
-  await loadCustomers()
+    isAddOpen.value = false
+    showToast("Pelanggan berhasil disimpan")
+    await loadCustomers()
+  } catch (err) {
+    console.error("Gagal menambah pelanggan:", err)
+    alert(err.message || "Gagal menambah pelanggan")
+  } finally {
+    isSubmitting.value = false;
+  }
 }
 
 onMounted(() => {

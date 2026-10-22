@@ -26,6 +26,7 @@ const filterOptions = computed(() => {
 const isAddOpen = ref(false)
 const isEditOpen = ref(false)
 const isManageCategoryOpen = ref(false)
+const isSubmitting = ref(false)
 const newCategoryName = ref("")
 
 const form = ref({
@@ -99,6 +100,7 @@ function openEdit(item) {
 }
 
 async function submitAdd() {
+  if (isSubmitting.value) return
   if (!form.value.description || !form.value.amount || !form.value.date) {
     return alert("Deskripsi, nominal, dan tanggal wajib diisi.")
   }
@@ -106,13 +108,22 @@ async function submitAdd() {
     return alert("Nominal harus lebih besar dari 0.")
   }
 
-  await addRevenue(form.value)
-  isAddOpen.value = false
-  showToast("Pendapatan lain berhasil dicatat")
-  await loadData()
+  isSubmitting.value = true
+  try {
+    await addRevenue(form.value)
+    isAddOpen.value = false
+    showToast("Pendapatan lain berhasil dicatat")
+    await loadData()
+  } catch (err) {
+    console.error("Gagal menambah pendapatan:", err)
+    alert(err.message || "Gagal menambah pendapatan")
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 async function submitEdit() {
+  if (isSubmitting.value) return
   if (!form.value.description || !form.value.amount || !form.value.date) {
     return alert("Deskripsi, nominal, dan tanggal wajib diisi.")
   }
@@ -120,22 +131,37 @@ async function submitEdit() {
     return alert("Nominal harus lebih besar dari 0.")
   }
 
-  await updateRevenue(form.value.id, form.value)
-  isEditOpen.value = false
-  showToast("Perubahan pendapatan lain disimpan")
-  await loadData()
+  isSubmitting.value = true
+  try {
+    await updateRevenue(form.value.id, form.value)
+    isEditOpen.value = false
+    showToast("Perubahan pendapatan lain disimpan")
+    await loadData()
+  } catch (err) {
+    console.error("Gagal mengupdate pendapatan:", err)
+    alert(err.message || "Gagal mengupdate pendapatan")
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 async function removeRevenue(id) {
   if (!confirm("Yakin ingin menghapus catatan pendapatan ini?")) return
-  await deleteRevenue(id)
-  isEditOpen.value = false
-  showToast("Pendapatan dihapus")
-  await loadData()
+  try {
+    await deleteRevenue(id)
+    isEditOpen.value = false
+    showToast("Pendapatan dihapus")
+    await loadData()
+  } catch (err) {
+    console.error("Gagal menghapus pendapatan:", err)
+    alert(err.message || "Gagal menghapus pendapatan")
+  }
 }
 
 async function handleAddCategory() {
+  if (isSubmitting.value) return
   if (!newCategoryName.value.trim()) return alert("Nama kategori wajib diisi")
+  isSubmitting.value = true
   try {
     await addCategory("revenue", newCategoryName.value)
     newCategoryName.value = ""
@@ -143,6 +169,8 @@ async function handleAddCategory() {
     showToast("Kategori baru ditambahkan")
   } catch (err) {
     alert(err.message || "Gagal menambah kategori")
+  } finally {
+    isSubmitting.value = false
   }
 }
 
@@ -243,7 +271,9 @@ onMounted(loadData)
           <label class="input-label">Catatan (Opsional)</label>
           <textarea v-model="form.note" placeholder="Keterangan tambahan..." class="main-input textarea"></textarea>
         </div>
-        <button @click="submitAdd" class="btn-green full-width">Simpan Pendapatan</button>
+        <button @click="submitAdd" :disabled="isSubmitting" class="btn-green full-width">
+          {{ isSubmitting ? "Menyimpan..." : "Simpan Pendapatan" }}
+        </button>
       </div>
     </SheetModal>
 
@@ -285,8 +315,10 @@ onMounted(loadData)
           <textarea v-model="form.note" placeholder="Keterangan tambahan..." class="main-input textarea"></textarea>
         </div>
         <div class="button-row">
-          <button @click="submitEdit" class="btn-green flex-1">Simpan Perubahan</button>
-          <button @click="removeRevenue(form.id)" class="btn-danger"><PhTrash size="16" /> Hapus</button>
+          <button @click="submitEdit" :disabled="isSubmitting" class="btn-green flex-1">
+            {{ isSubmitting ? "Menyimpan..." : "Simpan Perubahan" }}
+          </button>
+          <button @click="removeRevenue(form.id)" :disabled="isSubmitting" class="btn-danger"><PhTrash size="16" /> Hapus</button>
         </div>
       </div>
     </SheetModal>
