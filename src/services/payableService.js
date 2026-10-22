@@ -100,7 +100,16 @@ export async function updatePayable(id, data) {
 //   is_combined_with_monthly_settlement - opsional, true kalau pelunasan ini digabung
 //                                   dengan setoran kewajiban bulanan ke ISP Pusat
 //   note                          - catatan bebas tambahan, opsional
-export async function recordPayablePayment(payableId, payment) {
+//
+// `linkedExpense` (opsional) -- dipakai saat pelunasan "Ganti Barang" melibatkan pembelian
+// barang dari pihak luar (bukan dari stok sendiri). Kalau diisi, satu dokumen `expenses`
+// baru ikut ditulis DALAM transaksi yang sama (atomik dengan pencatatan pelunasan hutang
+// di atas) -- supaya uang riil yang keluar untuk beli barang pengganti itu tetap tercatat
+// sebagai pengeluaran, terpisah dari nilai taksiran yang dipakai melunasi hutang (dua
+// angka ini boleh beda, selisihnya untung/rugi barter yang sah).
+//   amount   - harga beli riil barang dari pihak luar
+//   category - opsional, default "Pembelian Perangkat"
+export async function recordPayablePayment(payableId, payment, linkedExpense = null) {
   const addAmount = Number(payment.amount)
   if (addAmount <= 0) {
     throw new Error("Nominal pembayaran harus lebih dari 0")
@@ -111,6 +120,17 @@ export async function recordPayablePayment(payableId, payment) {
   if (method === "barang" && !itemDescription) {
     throw new Error("Deskripsi barang wajib diisi untuk pelunasan via ganti barang")
   }
+
+  let expenseAmount = 0
+  if (linkedExpense) {
+    expenseAmount = Number(linkedExpense.amount)
+    if (expenseAmount <= 0) {
+      throw new Error("Nominal pembelian barang (untuk dicatat sebagai pengeluaran) harus lebih dari 0")
+    }
+  }
+
+  const { state } = useAuth()
+  const userEmail = state.user?.email || "system@zakanet"
 
   const payableDocRef = doc(db, "payables", payableId)
 
@@ -147,6 +167,22 @@ export async function recordPayablePayment(payableId, payment) {
       note: payment.note || "",
       created_at: serverTimestamp()
     })
+
+    if (linkedExpense) {
+      const newExpenseDocRef = doc(collection(db, "expenses"))
+      tx.set(newExpenseDocRef, {
+        category: linkedExpense.category || "Pembelian Perangkat",
+        description: linkedExpense.description || `Beli barang pengganti hutang ke ${data.supplier_name || "ISP Pusat"}: ${itemDescription}`,
+        amount: expenseAmount,
+        date: serverTimestamp(),
+        payment_method: "Tunai",
+        is_isp_bill: false,
+        note: `Terkait pelunasan Hutang Vendor (Ganti Barang) ID ${payableId}`,
+        created_by: userEmail,
+        created_at: serverTimestamp(),
+        updated_at: serverTimestamp()
+      })
+    }
 
     return { paid_amount: newPaid, status: newStatus }
   })

@@ -41,6 +41,8 @@ const paymentNote = ref("")
 const paymentMethod = ref("tunai_transfer") // "tunai_transfer" | "barang"
 const paymentItemDescription = ref("")
 const paymentCombinedMonthly = ref(false)
+const linkExpense = ref(false) // khusus method "barang": sekalian catat pembelian sebagai Pengeluaran
+const expensePurchaseAmount = ref("")
 
 const PAYMENT_METHOD_LABEL = {
   tunai_transfer: "Tunai / Transfer",
@@ -97,6 +99,8 @@ async function openEdit(item) {
   paymentMethod.value = "tunai_transfer"
   paymentItemDescription.value = ""
   paymentCombinedMonthly.value = false
+  linkExpense.value = false
+  expensePurchaseAmount.value = ""
 
   try {
     paymentHistory.value = await getPayablePayments(item.id)
@@ -145,25 +149,37 @@ async function submitPayment() {
     return alert("Deskripsi barang wajib diisi untuk pelunasan via ganti barang.")
   }
 
+  const shouldLinkExpense = paymentMethod.value === "barang" && linkExpense.value
+  const expenseAmountNum = Number(expensePurchaseAmount.value)
+  if (shouldLinkExpense && (!expenseAmountNum || expenseAmountNum <= 0)) {
+    return alert("Masukkan nominal pembelian barang (untuk dicatat sebagai pengeluaran) yang valid.")
+  }
+
   const currentRemaining = (form.value.amount || 0) - (form.value.paid_amount || 0)
   if (amountNum > currentRemaining) {
     return alert(`Nominal pembayaran melebihi sisa hutang (Sisa: Rp ${currentRemaining.toLocaleString('id-ID')})`)
   }
 
   try {
-    await recordPayablePayment(form.value.id, {
-      amount: amountNum,
-      method: paymentMethod.value,
-      item_description: paymentItemDescription.value,
-      is_combined_with_monthly_settlement: paymentCombinedMonthly.value,
-      note: paymentNote.value
-    })
-    showToast("Pembayaran hutang dicatat")
+    await recordPayablePayment(
+      form.value.id,
+      {
+        amount: amountNum,
+        method: paymentMethod.value,
+        item_description: paymentItemDescription.value,
+        is_combined_with_monthly_settlement: paymentCombinedMonthly.value,
+        note: paymentNote.value
+      },
+      shouldLinkExpense ? { amount: expenseAmountNum } : null
+    )
+    showToast(shouldLinkExpense ? "Pembayaran hutang & pengeluaran terkait dicatat" : "Pembayaran hutang dicatat")
     paymentAmount.value = ""
     paymentNote.value = ""
     paymentMethod.value = "tunai_transfer"
     paymentItemDescription.value = ""
     paymentCombinedMonthly.value = false
+    linkExpense.value = false
+    expensePurchaseAmount.value = ""
     isEditOpen.value = false
     await loadData()
   } catch (err) {
@@ -279,7 +295,7 @@ onMounted(loadData)
               <button
                 type="button"
                 :class="['method-toggle-btn', paymentMethod === 'tunai_transfer' ? 'active' : '']"
-                @click="paymentMethod = 'tunai_transfer'"
+                @click="paymentMethod = 'tunai_transfer'; linkExpense = false; expensePurchaseAmount = ''"
               >Tunai / Transfer</button>
               <button
                 type="button"
@@ -306,6 +322,25 @@ onMounted(loadData)
               <input type="checkbox" v-model="paymentCombinedMonthly" />
               Digabung dengan setoran bulanan ke ISP Pusat
             </label>
+
+            <template v-if="paymentMethod === 'barang'">
+              <label class="checkbox-label">
+                <input type="checkbox" v-model="linkExpense" />
+                Barang dibeli dari luar -- sekalian catat sebagai Pengeluaran
+              </label>
+              <input
+                v-if="linkExpense"
+                v-model="expensePurchaseAmount"
+                type="number"
+                placeholder="Nominal pembelian riil barang (Rp)"
+                class="main-input"
+              />
+              <p v-if="linkExpense" class="input-hint">
+                Dicatat otomatis di menu Pengeluaran (kategori "Pembelian Perangkat"), terpisah dari
+                nilai taksiran di atas -- boleh beda kalau harga beli tidak sama dengan nilai yang
+                disepakati untuk melunasi hutang.
+              </p>
+            </template>
 
             <button @click="submitPayment" class="btn-green full-width">Simpan Pembayaran</button>
           </div>
@@ -512,6 +547,14 @@ onMounted(loadData)
   border-radius: 10px;
 }
 
+/* base.css men-stretch semua <input> (termasuk checkbox) ke width: 100% --
+   checkbox butuh ukuran nativenya kembali supaya tidak jadi kotak panjang aneh. */
+.checkbox-label input[type="checkbox"] {
+  width: auto;
+  flex-shrink: 0;
+  padding: 0;
+}
+
 .payment-input-stack {
   display: flex;
   flex-direction: column;
@@ -549,6 +592,12 @@ onMounted(loadData)
   font-size: 12px;
   color: var(--color-text-secondary);
   cursor: pointer;
+}
+
+.input-hint {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  margin: -2px 0 0;
 }
 
 .history-tags {
