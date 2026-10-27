@@ -81,6 +81,7 @@ export function useDashboard() {
     const expensesSnap = await getDocs(collection(db, "expenses"))
     let totalOtherExpensesMonth = 0
     let totalIspBillExpensesMonth = 0
+    let ispExpenseList = []
 
     expensesSnap.forEach(doc => {
       const d = doc.data()
@@ -91,6 +92,13 @@ export function useDashboard() {
           const amt = Number(d.amount) || 0
           if (d.is_isp_bill) {
             totalIspBillExpensesMonth += amt
+            ispExpenseList.push({
+              id: doc.id,
+              description: d.description || "Pengeluaran ISP",
+              category: d.category || "Pengeluaran",
+              amount: amt,
+              date: date
+            })
           } else {
             totalOtherExpensesMonth += amt
           }
@@ -101,11 +109,24 @@ export function useDashboard() {
     // Hitung sisa hutang material/perangkat dari koleksi payables
     const payablesSnap = await getDocs(collection(db, "payables"))
     let totalUnpaidPayables = 0
+    let unpaidPayableList = []
+
     payablesSnap.forEach(doc => {
       const d = doc.data()
-      const remaining = (Number(d.amount) || 0) - (Number(d.paid_amount) || 0)
+      const amount = Number(d.amount) || 0
+      const paidAmount = Number(d.paid_amount) || 0
+      const remaining = amount - paidAmount
       if (remaining > 0) {
         totalUnpaidPayables += remaining
+        unpaidPayableList.push({
+          id: doc.id,
+          supplier_name: d.supplier_name || "ISP Pusat",
+          description: d.description || "Hutang Material/Perangkat",
+          amount: amount,
+          paid_amount: paidAmount,
+          remaining_amount: remaining,
+          due_date: d.due_date
+        })
       }
     })
 
@@ -182,8 +203,10 @@ export function useDashboard() {
       totalBillableAmount,
       baseIspShare,
       totalIspBillExpensesMonth,
+      ispExpenseList,
       ispObligation: totalIspObligation,
       totalUnpaidPayables,
+      unpaidPayableList,
       grandTotalIspObligation: totalIspObligation + totalUnpaidPayables,
       otherExpenses: totalOtherExpensesMonth
     }
