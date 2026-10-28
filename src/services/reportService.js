@@ -1,6 +1,13 @@
 import { collection, getDocs, query, where, orderBy, Timestamp } from "firebase/firestore"
 import { db } from "../firebase"
 
+function isIspShareExpense(d) {
+  if (!d) return false
+  if (d.is_isp_share) return true
+  const cat = (d.category || "").toLowerCase()
+  return cat.includes("bagi hasil") || cat === "setoran isp"
+}
+
 export async function getMonthSummary(month) {
   const [invoicesSnap, revenuesSnap, expensesSnap, payablesSnap] = await Promise.all([
     getDocs(query(collection(db, "invoices"), where("month", "==", month))),
@@ -38,6 +45,8 @@ export async function getMonthSummary(month) {
   // Pengeluaran (dibagi: Tagihan ISP Pusat vs Operasional Lokal)
   let totalIspBillExpensesMonth = 0
   let totalLocalExpensesMonth = 0
+  let isIspSharePaid = false
+
   expensesSnap.forEach(doc => {
     const d = doc.data()
     const date = d.date?.toDate ? d.date.toDate() : (d.date ? new Date(d.date) : null)
@@ -45,6 +54,10 @@ export async function getMonthSummary(month) {
       const itemMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
       if (itemMonth === month) {
         const amt = Number(d.amount) || 0
+        if (isIspShareExpense(d)) {
+          isIspSharePaid = true
+        }
+
         if (d.is_isp_bill) {
           totalIspBillExpensesMonth += amt
         } else {
@@ -64,7 +77,7 @@ export async function getMonthSummary(month) {
     }
   })
 
-  const baseIspShare = Math.round(totalOmzet / 2) // 50% bagi hasil dari total tagihan
+  const baseIspShare = isIspSharePaid ? 0 : Math.round(totalOmzet / 2) // 50% bagi hasil dari total tagihan (kecuali sudah dibayar)
   const totalIspObligation = baseIspShare + totalIspBillExpensesMonth // 50% + tagihan teknisi
   const grandTotalIspObligation = totalIspObligation + totalPayablesMonth // termasuk sisa hutang barang/kabel
 
@@ -99,12 +112,26 @@ export async function getIspSettlementDetails(month) {
 
   let totalInvoiceAmount = 0
   let totalPaidInvoiceAmount = 0
+  let isIspSharePaid = false
+
   invoicesSnap.forEach(doc => {
     const d = doc.data()
     totalInvoiceAmount += Number(d.amount) || 0
     totalPaidInvoiceAmount += Number(d.paid_amount) || 0
   })
-  const baseIspShare = Math.round(totalInvoiceAmount / 2)
+
+  expensesSnap.forEach(doc => {
+    const d = doc.data()
+    const date = d.date?.toDate ? d.date.toDate() : (d.date ? new Date(d.date) : null)
+    if (date && !isNaN(date)) {
+      const itemMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+      if (itemMonth === month && isIspShareExpense(d)) {
+        isIspSharePaid = true
+      }
+    }
+  })
+
+  const baseIspShare = isIspSharePaid ? 0 : Math.round(totalInvoiceAmount / 2)
 
   const ispTechExpenses = []
   expensesSnap.forEach(doc => {

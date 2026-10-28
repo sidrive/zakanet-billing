@@ -127,7 +127,7 @@ export function useDashboard() {
           const itemMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
           if (itemMonth === month) {
             const amt = Number(d.amount) || 0
-            if (d.category === "Setoran Bagi Hasil ISP") {
+            if (d.category === "Setoran Bagi Hasil ISP" || d.is_isp_share || (d.category || "").toLowerCase().includes("bagi hasil")) {
               isIspSharePaid = true
             }
 
