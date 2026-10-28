@@ -1,11 +1,14 @@
-<script setup>
 import { ref, computed, onMounted } from "vue"
 import { useDashboard } from "../composables/useDashboard"
 import { checkAndAutoDraw } from "@/services/promoService"
 import StatusBadge from "@/components/StatusBadge.vue"
 import SheetModal from "@/components/SheetModal.vue"
-import { PhCheckSquare, PhSquare, PhInfo, PhCaretRight } from "@phosphor-icons/vue"
+import { PhCheckSquare, PhSquare, PhInfo, PhCaretRight, PhWallet } from "@phosphor-icons/vue"
+import { addExpense, markExpenseAsPaid } from "@/services/expenseService"
+import { recordPayablePayment } from "@/services/payableService"
+import { useToast } from "@/composables/useToast"
 
+const { showToast } = useToast()
 const { summary, unpaidList, loadDashboard, recentPayments, ensureMonthlyInvoices } = useDashboard()
 
 const currentMonth = new Date().toISOString().slice(0, 7)
@@ -13,6 +16,8 @@ const todayLabel = new Date().toLocaleDateString("id-ID", { day: "numeric", mont
 
 // State & Logic Kalkulator Pembayaran ISP
 const isModalOpen = ref(false)
+const showConfirm = ref(false)
+const isSubmitting = ref(false)
 const includeBaseShare = ref(true)
 const selectedExpenses = ref([])
 const selectedPayables = ref([])
@@ -96,25 +101,52 @@ const totalItemCount = computed(() => {
   return count
 })
 
-onMounted(async () => {
-  await ensureMonthlyInvoices(currentMonth)
-  await loadDashboard(currentMonth)
-  // Jalankan undian promo di background — tidak memblokir dashboard
-  checkAndAutoDraw(currentMonth)
-})
+const processSettlement = async () => {
+  if (isSubmitting.value) return
+  isSubmitting.value = true
 
-const formatRupiah = (val) => {
-  return new Intl.NumberFormat("id-ID").format(val)
+  try {
+    // 1. Bayar Bagi Hasil
+    if (includeBaseShare.value) {
+      await addExpense({
+        category: "Setoran Bagi Hasil ISP",
+        description: `Bagi hasil omzet 50% bulan ${currentMonth}`,
+        amount: summary.value.baseIspShare,
+        date: new Date().toISOString().slice(0, 10),
+        payment_method: "Transfer",
+        is_isp_bill: true,
+        note: "Pembayaran otomatis via kalkulator dashboard"
+      })
+    }
+
+    // 2. Bayar pengeluaran teknisi
+    for (const expId of selectedExpenses.value) {
+      await markExpenseAsPaid(expId)
+    }
+
+    // 3. Bayar payables
+    for (const payId of selectedPayables.value) {
+      const payable = summary.value.unpaidPayableList.find(p => p.id === payId)
+      if (payable) {
+        await recordPayablePayment(payId, {
+          amount: payable.remaining_amount,
+          method: "tunai_transfer",
+          note: "Pelunasan otomatis via kalkulator dashboard"
+        })
+      }
+    }
+
+    showToast("Pembayaran berhasil diproses")
+    showConfirm.value = false
+    isModalOpen.value = false
+    await loadDashboard(currentMonth)
+  } catch (err) {
+    console.error(err)
+    alert("Gagal memproses pembayaran: " + err.message)
+  } finally {
+    isSubmitting.value = false
+  }
 }
-
-const formatDate = (timestamp) => {
-  if (!timestamp) return "-"
-  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
-  return date.toLocaleDateString("id-ID")
-}
-
-const initials = (name) => (name || "?").charAt(0).toUpperCase()
-</script>
 
 <template>
   <div class="dashboard-page">
@@ -342,10 +374,59 @@ const initials = (name) => (name || "?").charAt(0).toUpperCase()
 
           <div class="calc-footer-note">
             <PhInfo size="15" />
-            <span>Fitur ini adalah kalkulator bantu untuk referensi pembayaran. Pilihan di atas tidak mengubah status transaksi di sistem.</span>
+            <span>Pilih item yang ingin dilunasi di atas, lalu klik tombol pembayaran di bawah untuk mengeksekusi pelunasan otomatis.</span>
+          </div>
+
+          <!-- Tombol Aksi Bayar -->
+          <div class="calc-footer-actions">
+            <button
+              type="button"
+              class="btn-primary-action"
+              :disabled="selectedCount === 0"
+              @click="showConfirm = true"
+            >
+              <PhWallet size="18" weight="bold" />
+              Bayar / Lunasi Terpilih (Rp {{ formatRupiah(calculatedTotal) }})
+            </button>
           </div>
         </div>
       </SheetModal>
+
+      <!-- Modal Konfirmasi Pembayaran -->
+      <div v-if="showConfirm" class="modal-overlay">
+        <div class="modal-dialog animate-scale-in">
+          <div class="modal-header">
+            <h3>Konfirmasi Pelunasan & Pembayaran</h3>
+          </div>
+          <div class="modal-body">
+            <p>Anda akan memproses pelunasan untuk <strong>{{ selectedCount }} item</strong> dengan total sebesar:</p>
+            <div class="confirm-total-box">
+              Rp {{ formatRupiah(calculatedTotal) }}
+            </div>
+            <p class="confirm-note">
+              Tindakan ini akan mencatat pembayaran secara otomatis dan menghilangkan item yang lunas dari daftar kewajiban di dashboard.
+            </p>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn-secondary"
+              @click="showConfirm = false"
+              :disabled="isSubmitting"
+            >
+              Batal
+            </button>
+            <button
+              type="button"
+              class="btn-primary"
+              @click="processSettlement"
+              :disabled="isSubmitting"
+            >
+              {{ isSubmitting ? 'Memproses...' : 'Ya, Bayar & Lunasi' }}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -400,6 +481,97 @@ const initials = (name) => (name || "?").charAt(0).toUpperCase()
   font-size: 11px;
   color: var(--color-text-secondary);
   margin-top: 4px;
+}
+
+.calc-total-card {
+  background: var(--color-dark-surface);
+  color: var(--color-dark-surface-text);
+  border-radius: var(--radius-card);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.calc-total-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.calc-total-card__amount {
+  font-size: 24px;
+  font-weight: 800;
+  margin: 8px 0;
+}
+
+.calc-total-card__sub { font-size: 11px; opacity: 0.7; }
+
+.calc-action-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.btn-text-sm {
+  background: none;
+  border: 1px solid var(--color-card-border);
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-text-sm--red { color: var(--color-red); border-color: var(--color-red-tint); }
+
+.calc-section { margin-bottom: 20px; }
+.calc-section__title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  margin-bottom: 10px;
+}
+
+.calc-item-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--color-card-border);
+  cursor: pointer;
+  margin-bottom: 6px;
+  transition: background 0.2s;
+}
+
+.calc-item-row.is-selected { background: #f0fdf4; border-color: #bbf7d0; }
+
+.calc-item-row__info { flex: 1; min-width: 0; }
+.calc-item-row__name { font-size: 13px; font-weight: 600; }
+.calc-item-row__sub { font-size: 11px; color: var(--color-text-secondary); }
+.calc-item-row__amount { font-size: 13px; font-weight: 700; }
+.calc-item-row__amount--red { color: var(--color-red); }
+
+.empty-section-hint {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  font-style: italic;
+  padding: 8px;
+}
+
+.calc-footer-note {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  background: var(--color-chip-bg);
+  padding: 10px;
+  border-radius: var(--radius-card);
+  line-height: 1.4;
 }
 
 .grand-total-banner {
@@ -550,6 +722,93 @@ const initials = (name) => (name || "?").charAt(0).toUpperCase()
 .activity-row:last-child { border-bottom: none; }
 .activity-row__text { font-size: 13px; color: var(--color-text-primary); }
 .activity-row__time { font-size: 11px; color: var(--color-text-secondary); margin-top: 3px; }
+
+.calc-footer-actions {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--color-divider);
+}
+
+.btn-primary-action {
+  width: 100%;
+  padding: 14px;
+  background: var(--color-green);
+  color: white;
+  border: none;
+  border-radius: var(--radius-card);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-primary-action:hover:not(:disabled) {
+  background: #059669; /* var(--color-green-dark) approximation */
+  transform: translateY(-2px);
+}
+
+.btn-primary-action:disabled {
+  background: var(--color-text-tertiary);
+  cursor: not-allowed;
+}
+
+/* Modal Konfirmasi */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modal-dialog {
+  background: var(--color-card-bg);
+  border-radius: var(--radius-card-lg);
+  padding: 24px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: var(--shadow-modal);
+}
+
+.modal-header h3 { font-size: 16px; font-weight: 800; color: var(--color-text-primary); }
+
+.confirm-total-box {
+  margin: 16px 0;
+  padding: 16px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+  font-size: 22px;
+  font-weight: 800;
+  text-align: center;
+  border-radius: var(--radius-card);
+}
+
+.confirm-note { font-size: 13px; color: var(--color-text-secondary); line-height: 1.5; }
+
+.modal-footer {
+  margin-top: 24px;
+  display: flex;
+  gap: 12px;
+}
+
+.btn-secondary {
+  flex: 1; padding: 12px; background: var(--color-bg);
+  border: 1px solid var(--color-card-border);
+  border-radius: var(--radius-card); font-weight: 600; cursor: pointer;
+}
+
+.btn-primary {
+  flex: 1; padding: 12px; background: var(--color-green);
+  color: white; border: none; border-radius: var(--radius-card);
+  font-weight: 600; cursor: pointer;
+}
 
 /* --- States (Loading & Empty) --- */
 .loading-card {

@@ -56,6 +56,15 @@ export async function updateExpense(id, data) {
   })
 }
 
+export async function markExpenseAsPaid(id) {
+  const ref = doc(db, "expenses", id)
+  await updateDoc(ref, {
+    is_paid: true,
+    paid_at: serverTimestamp(),
+    updated_at: serverTimestamp()
+  })
+}
+
 export async function deleteExpense(id) {
   const ref = doc(db, "expenses", id)
   await deleteDoc(ref)

@@ -82,6 +82,7 @@ export function useDashboard() {
     let totalOtherExpensesMonth = 0
     let totalIspBillExpensesMonth = 0
     let ispExpenseList = []
+    let isIspSharePaid = false
 
     expensesSnap.forEach(doc => {
       const d = doc.data()
@@ -90,15 +91,22 @@ export function useDashboard() {
         const itemMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
         if (itemMonth === month) {
           const amt = Number(d.amount) || 0
+          if (d.category === "Setoran Bagi Hasil ISP") {
+            isIspSharePaid = true
+          }
+
           if (d.is_isp_bill) {
-            totalIspBillExpensesMonth += amt
-            ispExpenseList.push({
-              id: doc.id,
-              description: d.description || "Pengeluaran ISP",
-              category: d.category || "Pengeluaran",
-              amount: amt,
-              date: date
-            })
+            // Hanya masukkan ke list jika BELUM dibayar
+            if (!d.is_paid) {
+              totalIspBillExpensesMonth += amt
+              ispExpenseList.push({
+                id: doc.id,
+                description: d.description || "Pengeluaran ISP",
+                category: d.category || "Pengeluaran",
+                amount: amt,
+                date: date
+              })
+            }
           } else {
             totalOtherExpensesMonth += amt
           }
@@ -130,7 +138,7 @@ export function useDashboard() {
       }
     })
 
-    const baseIspShare = Math.round(totalBillableAmount / 2)
+    const baseIspShare = isIspSharePaid ? 0 : Math.round(totalBillableAmount / 2)
     const totalIspObligation = baseIspShare + totalIspBillExpensesMonth
 
     // Query total piutang semua bulan
@@ -204,6 +212,7 @@ export function useDashboard() {
       baseIspShare,
       totalIspBillExpensesMonth,
       ispExpenseList,
+      isIspSharePaid,
       ispObligation: totalIspObligation,
       totalUnpaidPayables,
       unpaidPayableList,
