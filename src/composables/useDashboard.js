@@ -25,13 +25,21 @@ export function useDashboard() {
         clientMap[doc.id] = clientData.name
       })
 
-      // 2️⃣ ambil invoices bulan ini
-      const q = query(
-        collection(db, "invoices"),
-        where("month", "==", month)
-      )
-
-      const snapshot = await getDocs(q)
+      // 2️⃣ ambil invoices bulan ini (dengan fallback jika query gagal atau index belum ada)
+      let snapshot = { docs: [] }
+      try {
+        const q = query(
+          collection(db, "invoices"),
+          where("month", "==", month)
+        )
+        snapshot = await getDocs(q)
+      } catch (err) {
+        console.warn("Falling back to client-side filter for month invoices:", err)
+        const allInvSnap = await getDocs(collection(db, "invoices"))
+        snapshot = {
+          docs: allInvSnap.docs.filter(doc => doc.data().month === month)
+        }
+      }
 
       let totalInvoice = 0
       let paidCount = 0
