@@ -27,6 +27,7 @@ export async function getExpenses() {
 export async function addExpense(data) {
   const { state } = useAuth()
   const userEmail = state.user?.email || "system@zakanet"
+  const isPaid = !!data.is_paid
 
   return await addDoc(expenseRef, {
     category: data.category,
@@ -35,6 +36,13 @@ export async function addExpense(data) {
     date: data.date ? Timestamp.fromDate(new Date(data.date)) : serverTimestamp(),
     payment_method: data.payment_method || "Tunai",
     is_isp_bill: !!data.is_isp_bill,
+    // `is_paid` dipakai dashboard untuk menyaring expense ber-tag ISP yang masih harus
+    // dibayar (lihat useDashboard.js) -- defaultnya false untuk pengeluaran biasa yang
+    // dicatat manual lewat Expenses.vue. Kalkulator settlement di Dashboard.vue mengirim
+    // is_paid: true saat mencatat setoran yang MEMANG sudah lunas saat itu juga, supaya
+    // catatannya sendiri tidak langsung muncul lagi sebagai "belum dibayar".
+    is_paid: isPaid,
+    paid_at: isPaid ? serverTimestamp() : null,
     note: data.note || "",
     created_by: userEmail,
     created_at: serverTimestamp(),
