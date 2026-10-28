@@ -1,3 +1,4 @@
+<script setup>
 import { ref, computed, onMounted } from "vue"
 import { useDashboard } from "../composables/useDashboard"
 import { checkAndAutoDraw } from "@/services/promoService"
@@ -74,14 +75,17 @@ const retryLoad = async () => {
 
 const openModal = () => {
   if (!summary.value) return
-  includeBaseShare.value = true
+  // Jangan centang "Bagi Hasil Omzet" secara default kalau sudah lunas bulan ini (baseIspShare
+  // sudah 0) -- kalau tidak, tiap kali kalkulator dibuka lagi (mis. buat bayar vendor yang baru
+  // muncul) akan ikut membuat entri Pengeluaran "Setoran Bagi Hasil ISP" senilai Rp 0 berulang.
+  includeBaseShare.value = !summary.value.isIspSharePaid
   selectedExpenses.value = (summary.value.ispExpenseList || []).map(e => e.id)
   selectedPayables.value = (summary.value.unpaidPayableList || []).map(p => p.id)
   isModalOpen.value = true
 }
 
 const selectAll = () => {
-  includeBaseShare.value = true
+  includeBaseShare.value = !summary.value?.isIspSharePaid
   selectedExpenses.value = (summary.value?.ispExpenseList || []).map(e => e.id)
   selectedPayables.value = (summary.value?.unpaidPayableList || []).map(p => p.id)
 }
@@ -156,8 +160,9 @@ const processSettlement = async () => {
   isSubmitting.value = true
 
   try {
-    // 1. Bayar Bagi Hasil
-    if (includeBaseShare.value) {
+    // 1. Bayar Bagi Hasil -- skip kalau sudah lunas bulan ini (baseIspShare 0), biar tidak
+    // bikin entri Pengeluaran Rp 0 yang redundan.
+    if (includeBaseShare.value && summary.value.baseIspShare > 0) {
       await addExpense({
         category: "Setoran Bagi Hasil ISP",
         description: `Bagi hasil omzet 50% bulan ${currentMonth}`,
@@ -197,6 +202,7 @@ const processSettlement = async () => {
     isSubmitting.value = false
   }
 }
+</script>
 
 <template>
   <div class="dashboard-page">
