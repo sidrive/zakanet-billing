@@ -170,6 +170,7 @@ const processSettlement = async () => {
         date: new Date().toISOString().slice(0, 10),
         payment_method: "Transfer",
         is_isp_bill: true,
+        is_paid: true, // sudah lunas saat dicatat -- jangan sampai muncul lagi sebagai belum dibayar
         note: "Pembayaran otomatis via kalkulator dashboard"
       })
     }
