@@ -9,7 +9,7 @@ import { recordPayablePayment } from "@/services/payableService"
 import { useToast } from "@/composables/useToast"
 
 const { showToast } = useToast()
-const { summary, unpaidList, loadDashboard, recentPayments, ensureMonthlyInvoices } = useDashboard()
+const { summary, unpaidList, loading, error, loadDashboard, recentPayments, ensureMonthlyInvoices } = useDashboard()
 
 const currentMonth = new Date().toISOString().slice(0, 7)
 const todayLabel = new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })
@@ -21,6 +21,34 @@ const isSubmitting = ref(false)
 const includeBaseShare = ref(true)
 const selectedExpenses = ref([])
 const selectedPayables = ref([])
+
+onMounted(async () => {
+  try {
+    await ensureMonthlyInvoices(currentMonth)
+  } catch (err) {
+    console.error("Error in ensureMonthlyInvoices:", err)
+  }
+
+  try {
+    await loadDashboard(currentMonth)
+  } catch (err) {
+    console.error("Error in loadDashboard:", err)
+  }
+
+  try {
+    checkAndAutoDraw(currentMonth)
+  } catch (err) {
+    console.error("Error in checkAndAutoDraw:", err)
+  }
+})
+
+const retryLoad = async () => {
+  try {
+    await loadDashboard(currentMonth)
+  } catch (err) {
+    console.error("Error retrying loadDashboard:", err)
+  }
+}
 
 const openModal = () => {
   if (!summary.value) return
@@ -155,7 +183,13 @@ const processSettlement = async () => {
       <div class="dashboard-greeting__date">{{ todayLabel }}</div>
     </div>
 
-    <div v-if="!summary" class="card loading-card">
+    <div v-if="!summary && error" class="card loading-card">
+      <p style="color: var(--color-red); font-weight: 700; margin-bottom: 6px;">Gagal Memuat Dashboard</p>
+      <p style="font-size: 13px; color: var(--color-text-secondary); margin-bottom: 12px;">{{ error }}</p>
+      <button type="button" class="btn-primary" style="padding: 8px 16px; border-radius: var(--radius-card);" @click="retryLoad">Coba Lagi</button>
+    </div>
+
+    <div v-else-if="!summary" class="card loading-card">
       <div class="spinner"></div>
       <p>Memuat data ringkasan...</p>
     </div>
