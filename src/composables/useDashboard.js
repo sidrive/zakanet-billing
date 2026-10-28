@@ -17,15 +17,20 @@ export function useDashboard() {
 
     try {
       // 1️⃣ ambil semua clients
-      const clientsSnap = await getDocs(collection(db, "customers"))
-      const clientMap = {}
+      let clientsSnap = { docs: [] }
+      try {
+        clientsSnap = await getDocs(collection(db, "customers"))
+      } catch (e) {
+        console.warn("Error fetching customers:", e)
+      }
 
-      clientsSnap.forEach(doc => {
+      const clientMap = {}
+      clientsSnap.docs.forEach(doc => {
         const clientData = doc.data()
         clientMap[doc.id] = clientData.name
       })
 
-      // 2️⃣ ambil invoices bulan ini (dengan fallback jika query gagal atau index belum ada)
+      // 2️⃣ ambil invoices bulan ini (dengan fallback jika query gagal)
       let snapshot = { docs: [] }
       try {
         const q = query(
@@ -35,9 +40,13 @@ export function useDashboard() {
         snapshot = await getDocs(q)
       } catch (err) {
         console.warn("Falling back to client-side filter for month invoices:", err)
-        const allInvSnap = await getDocs(collection(db, "invoices"))
-        snapshot = {
-          docs: allInvSnap.docs.filter(doc => doc.data().month === month)
+        try {
+          const allInvSnap = await getDocs(collection(db, "invoices"))
+          snapshot = {
+            docs: allInvSnap.docs.filter(doc => doc.data().month === month)
+          }
+        } catch (e) {
+          console.warn("Error fetching all invoices:", e)
         }
       }
 
@@ -51,7 +60,7 @@ export function useDashboard() {
 
       let debtList = []
 
-      snapshot.forEach(doc => {
+      snapshot.docs.forEach(doc => {
         const data = doc.data()
         totalInvoice++
 
@@ -89,19 +98,32 @@ export function useDashboard() {
 
       // 3️⃣ Hitung Kewajiban ISP Pusat, Hutang Material, & Operasional Lokal
       // Format month: "YYYY-MM"
-      const expensesSnap = await getDocs(collection(db, "expenses"))
+      let expensesSnap = { docs: [] }
+      try {
+        expensesSnap = await getDocs(collection(db, "expenses"))
+      } catch (e) {
+        console.warn("Error fetching expenses:", e)
+      }
+
       let totalOtherExpensesMonth = 0
       let totalIspBillExpensesMonth = 0
       let ispExpenseList = []
       let isIspSharePaid = false
 
-      expensesSnap.forEach(doc => {
+      expensesSnap.docs.forEach(doc => {
         const d = doc.data()
-        const date = typeof d.date?.toDate === "function"
-          ? d.date.toDate()
-          : (d.date ? new Date(d.date) : null)
+        let date = null
+        if (d.date) {
+          if (typeof d.date.toDate === "function") {
+            date = d.date.toDate()
+          } else if (d.date.seconds) {
+            date = new Date(d.date.seconds * 1000)
+          } else {
+            date = new Date(d.date)
+          }
+        }
 
-        if (date && !isNaN(date)) {
+        if (date && !isNaN(date.getTime())) {
           const itemMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
           if (itemMonth === month) {
             const amt = Number(d.amount) || 0
@@ -129,11 +151,17 @@ export function useDashboard() {
       })
 
       // Hitung sisa hutang material/perangkat dari koleksi payables
-      const payablesSnap = await getDocs(collection(db, "payables"))
+      let payablesSnap = { docs: [] }
+      try {
+        payablesSnap = await getDocs(collection(db, "payables"))
+      } catch (e) {
+        console.warn("Error fetching payables:", e)
+      }
+
       let totalUnpaidPayables = 0
       let unpaidPayableList = []
 
-      payablesSnap.forEach(doc => {
+      payablesSnap.docs.forEach(doc => {
         const d = doc.data()
         const amount = Number(d.amount) || 0
         const paidAmount = Number(d.paid_amount) || 0
@@ -166,10 +194,14 @@ export function useDashboard() {
         unpaidAllDocs = unpaidAllSnap.docs.map(doc => doc.data())
       } catch (err) {
         console.warn("Falling back to client-side filter for unpaid invoices:", err)
-        const allInvSnap = await getDocs(collection(db, "invoices"))
-        unpaidAllDocs = allInvSnap.docs
-          .map(doc => doc.data())
-          .filter(d => d.status !== "paid")
+        try {
+          const allInvSnap = await getDocs(collection(db, "invoices"))
+          unpaidAllDocs = allInvSnap.docs
+            .map(doc => doc.data())
+            .filter(d => d.status !== "paid")
+        } catch (e) {
+          console.warn("Error fetching all invoices:", e)
+        }
       }
 
       const debtMap = {}
@@ -209,20 +241,25 @@ export function useDashboard() {
           limit(5)
         )
         const recentSnap = await getDocs(recentQuery)
-        recentSnap.forEach(doc => {
+        recentSnap.docs.forEach(doc => {
           recent.push({ id: doc.id, ...doc.data() })
         })
       } catch (err) {
         console.warn("Falling back to client-side sort for recent payments:", err)
         try {
           const allPaymentsSnap = await getDocs(collection(db, "payments"))
-          allPaymentsSnap.forEach(doc => {
+          allPaymentsSnap.docs.forEach(doc => {
             recent.push({ id: doc.id, ...doc.data() })
           })
           recent.sort((a, b) => {
-            const timeA = a.created_at?.seconds || (a.created_at ? new Date(a.created_at).getTime() : 0)
-            const timeB = b.created_at?.seconds || (b.created_at ? new Date(b.created_at).getTime() : 0)
-            return timeB - timeA
+            const getTime = (item) => {
+              if (!item?.created_at) return 0
+              if (typeof item.created_at.toDate === "function") return item.created_at.toDate().getTime()
+              if (item.created_at.seconds) return item.created_at.seconds * 1000
+              const d = new Date(item.created_at)
+              return isNaN(d.getTime()) ? 0 : d.getTime()
+            }
+            return getTime(b) - getTime(a)
           })
         } catch (e) {
           console.error("Failed to fetch payments:", e)
@@ -266,18 +303,28 @@ export function useDashboard() {
       const customerSnap = await getDocs(collection(db, "customers"))
 
       // 2️⃣ Ambil semua invoice bulan ini
-      const invoiceSnap = await getDocs(
-        query(
-          collection(db, "invoices"),
-          where("month", "==", month)
+      let invoiceSnap = { docs: [] }
+      try {
+        invoiceSnap = await getDocs(
+          query(
+            collection(db, "invoices"),
+            where("month", "==", month)
+          )
         )
-      )
+      } catch (e) {
+        const allSnap = await getDocs(collection(db, "invoices"))
+        invoiceSnap = {
+          docs: allSnap.docs.filter(d => d.data().month === month)
+        }
+      }
 
       // Buat set customer_id yang sudah punya invoice
       const existingCustomerIds = new Set()
-      invoiceSnap.forEach(doc => {
+      invoiceSnap.docs.forEach(doc => {
         existingCustomerIds.add(doc.data().customer_id)
       })
+
+      let generatedAny = false
 
       for (const docSnap of customerSnap.docs) {
         try {
@@ -303,6 +350,8 @@ export function useDashboard() {
             created_at: serverTimestamp()
           })
 
+          generatedAny = true
+
           // =============================
           // 7️⃣ Full otomatis: cek saldo
           // =============================
@@ -317,6 +366,10 @@ export function useDashboard() {
         } catch (err) {
           console.error(`Error generating invoice for customer ${docSnap.id}:`, err)
         }
+      }
+
+      if (generatedAny) {
+        await loadDashboard(month)
       }
     } catch (err) {
       console.error("Error in ensureMonthlyInvoices:", err)
@@ -333,4 +386,5 @@ export function useDashboard() {
     ensureMonthlyInvoices,
   }
 }
+
 

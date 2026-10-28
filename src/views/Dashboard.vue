@@ -14,6 +14,28 @@ const { summary, unpaidList, loading, error, loadDashboard, recentPayments, ensu
 const currentMonth = new Date().toISOString().slice(0, 7)
 const todayLabel = new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })
 
+const formatRupiah = (val) => {
+  const num = Number(val)
+  if (isNaN(num)) return "0"
+  return new Intl.NumberFormat("id-ID").format(num)
+}
+
+const formatDate = (timestamp) => {
+  if (!timestamp) return "-"
+  let date = null
+  if (typeof timestamp.toDate === "function") {
+    date = timestamp.toDate()
+  } else if (timestamp?.seconds) {
+    date = new Date(timestamp.seconds * 1000)
+  } else {
+    date = new Date(timestamp)
+  }
+  if (!date || isNaN(date.getTime())) return "-"
+  return date.toLocaleDateString("id-ID")
+}
+
+const initials = (name) => (name || "?").charAt(0).toUpperCase()
+
 // State & Logic Kalkulator Pembayaran ISP
 const isModalOpen = ref(false)
 const showConfirm = ref(false)
@@ -24,15 +46,15 @@ const selectedPayables = ref([])
 
 onMounted(async () => {
   try {
-    await ensureMonthlyInvoices(currentMonth)
-  } catch (err) {
-    console.error("Error in ensureMonthlyInvoices:", err)
-  }
-
-  try {
     await loadDashboard(currentMonth)
   } catch (err) {
     console.error("Error in loadDashboard:", err)
+  }
+
+  try {
+    ensureMonthlyInvoices(currentMonth)
+  } catch (err) {
+    console.error("Error in ensureMonthlyInvoices:", err)
   }
 
   try {
