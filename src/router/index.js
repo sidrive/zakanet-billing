@@ -9,6 +9,7 @@ import Expenses from "../views/Expenses.vue"
 import Revenues from "../views/Revenues.vue"
 import Payables from "../views/Payables.vue"
 import Promo from "../views/Promo.vue"
+import CustomerPayments from "../views/CustomerPayments.vue"
 import Login from "../views/Login.vue"
 import { useAuth } from "../composables/useAuth"
 
@@ -22,6 +23,7 @@ const routes = [
   { path: "/customers", component: Customers, meta: { title: 'Pelanggan'} },
   { path: "/payments", component: Payments, meta: { title: 'Pembayaran'} },
   { path: "/reports", component: Reports, meta: { title: 'Laporan'} },
+  { path: "/reports/customer-payments", component: CustomerPayments, meta: { title: 'Laporan Pembayaran Pelanggan'} },
   { path: "/promo", component: Promo, meta: { title: 'Promo Bulanan'} }
 ]
 

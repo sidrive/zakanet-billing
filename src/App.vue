@@ -1,7 +1,7 @@
 <script setup>
 import { watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
-import { PhHouse, PhPackage, PhTrendDown, PhTrendUp, PhBuildings, PhUsers, PhWallet, PhChartBar, PhGift } from "@phosphor-icons/vue"
+import { PhHouse, PhPackage, PhTrendDown, PhTrendUp, PhBuildings, PhUsers, PhWallet, PhChartBar, PhGift, PhReceipt } from "@phosphor-icons/vue"
 import Toast from "@/components/Toast.vue"
 import { useAuth } from "@/composables/useAuth"
 
@@ -18,6 +18,7 @@ const navItems = [
   { to: "/customers", icon: PhUsers, label: "Data Pelanggan", bnavLabel: "Pelanggan" },
   { to: "/payments", icon: PhWallet, label: "Pembayaran", bnavLabel: "Bayar" },
   { to: "/reports", icon: PhChartBar, label: "Laporan", bnavLabel: "Laporan" },
+  { to: "/reports/customer-payments", icon: PhReceipt, label: "Laporan Pembayaran", mobile: false },
   { to: "/promo", icon: PhGift, label: "Promo Bulanan", bnavLabel: "Promo" },
 ]
 
@@ -77,7 +78,7 @@ async function handleLogout() {
       </section>
 
       <nav class="bottom-nav">
-        <router-link v-for="item in navItems" :key="item.to" :to="item.to" class="bnav-item">
+        <router-link v-for="item in navItems.filter(i => i.mobile !== false)" :key="item.to" :to="item.to" class="bnav-item">
           <component :is="item.icon" size="20" weight="bold" class="bnav-icon" />
           <span class="bnav-label">{{ item.bnavLabel }}</span>
         </router-link>
